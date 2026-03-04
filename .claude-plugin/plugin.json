@@ -1,0 +1,8 @@
+{
+  "name": "dtk",
+  "description": "Developer toolkit with smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and an informative statusline",
+  "version": "1.0.0",
+  "author": {
+    "name": "Junielton Quirino"
+  }
+}
