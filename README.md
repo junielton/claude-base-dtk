@@ -1,4 +1,4 @@
-# dtk — Developer Toolkit for Claude Code
+# DTK — Developer Toolkit for Claude Code
 
 A plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with skills for smart commits, code reviews with persistent memory, architecture decision records, PRDs, and design QA.
 
