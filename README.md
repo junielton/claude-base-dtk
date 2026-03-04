@@ -8,7 +8,7 @@ A plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with 
 
 ```bash
 # Add the marketplace
-claude plugin marketplace add git@github.com:jnieltn/dtk.git
+claude plugin marketplace add git@github.com:junielton/claude-base-dtk.git
 
 # Install the plugin
 claude plugin install dtk@dtk-marketplace
