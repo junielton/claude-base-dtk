@@ -1,11 +1,19 @@
 {
   "name": "dtk-marketplace",
-  "description": "Developer Toolkit — smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and more",
+  "owner": {
+    "name": "Junielton Quirino",
+    "email": "junyellton@gmail.com"
+  },
+  "metadata": {
+    "description": "Developer Toolkit — smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and more",
+    "version": "1.0.0"
+  },
   "plugins": [
     {
       "name": "dtk",
+      "source": ".",
       "description": "Developer toolkit with smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and an informative statusline",
-      "path": "."
+      "version": "1.0.0"
     }
   ]
 }
