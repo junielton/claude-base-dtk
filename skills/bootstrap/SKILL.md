@@ -50,10 +50,96 @@ mkdir -p \
 ### 1.2 — Tool Configuration (`.claude/`)
 
 ```bash
-mkdir -p .claude/commands .claude/skills .claude/plans
+mkdir -p .claude/commands .claude/skills
 ```
 
-### 1.3 — `.gitignore` Entries
+### 1.3 — Index Files
+
+Create index files **only if they don't already exist**. These are the central reference points for all project knowledge.
+
+#### `docs/adrs/index.md`
+
+```markdown
+# Architecture Decision Records
+
+| # | Decision | Weight | Status | Date |
+|---|----------|--------|--------|------|
+```
+
+#### `docs/lessons/index.md`
+
+```markdown
+# Lessons Learned
+
+Central index of all lessons extracted from code reviews, incidents, and retrospectives.
+
+## Categories
+
+- [Security](./security/)
+- [Code Patterns](./code-patterns/)
+- [QA](./qa/)
+- [Performance](./performance/)
+- [Framework](./framework/)
+- [Testing](./testing/)
+- [Frontend](./frontend/)
+
+## Recent Lessons
+
+| # | Lesson | Category | Severity | Date |
+|---|--------|----------|----------|------|
+```
+
+#### `docs/prds/index.md`
+
+```markdown
+# Product Requirements Documents
+
+| PRD | Status | Author | Created |
+|-----|--------|--------|---------|
+```
+
+#### `.claude/MEMORY.md`
+
+This file acts as the **central memory** for AI-assisted development. It links all knowledge bases so Claude can quickly find project context.
+
+```markdown
+# Project Memory
+
+Quick-access index for all project knowledge. Claude should consult these references when making decisions.
+
+## Knowledge Base
+
+- **Architecture Decisions:** [docs/adrs/index.md](../docs/adrs/index.md) — technical decisions, trade-offs, and rationale
+- **Lessons Learned:** [docs/lessons/index.md](../docs/lessons/index.md) — patterns, anti-patterns, and insights from reviews
+- **Product Requirements:** [docs/prds/index.md](../docs/prds/index.md) — feature specs and acceptance criteria
+```
+
+### 1.4 — CLAUDE.md Reference
+
+If `CLAUDE.md` exists at the project root but does **not** reference MEMORY.md, append:
+
+```markdown
+
+## Project Memory
+
+This project maintains a structured knowledge base. Before making architectural decisions or reviewing code, consult:
+
+→ [.claude/MEMORY.md](.claude/MEMORY.md)
+```
+
+If `CLAUDE.md` does not exist, create it with:
+
+```markdown
+# {GIT_REPO}
+
+## Project Memory
+
+This project maintains a structured knowledge base. Before making architectural decisions or reviewing code, consult:
+
+→ [.claude/MEMORY.md](.claude/MEMORY.md)
+```
+
+### 1.5 — `.gitignore` Entries
 
 ```bash
 for entry in "settings.local.json" "memories/"; do
@@ -94,10 +180,24 @@ for dir in docs docs/adrs docs/lessons docs/prds; do
 done
 
 echo ""
+echo "Index Files:"
+for file in docs/adrs/index.md docs/lessons/index.md docs/prds/index.md .claude/MEMORY.md; do
+  [ -f "$file" ] && echo "  ✅ $file" || echo "  ❌ $file"
+done
+
+echo ""
 echo "Tool Config (.claude/):"
-for dir in .claude .claude/commands .claude/skills .claude/plans; do
+for dir in .claude .claude/commands .claude/skills; do
   [ -d "$dir" ] && echo "  ✅ $dir/" || echo "  ❌ $dir/"
 done
+
+echo ""
+echo "CLAUDE.md:"
+if [ -f "CLAUDE.md" ]; then
+  grep -q "MEMORY.md" CLAUDE.md && echo "  ✅ CLAUDE.md → references MEMORY.md" || echo "  ⚠️  CLAUDE.md exists but missing MEMORY.md reference"
+else
+  echo "  ❌ CLAUDE.md not found"
+fi
 ```
 
 ---
@@ -118,8 +218,10 @@ done
 
 ### Next Steps
 - All knowledge in `docs/` is version-controlled — commit it!
+- `.claude/MEMORY.md` is the central index — Claude will consult it automatically
 - Use `/adr` to record architectural decisions
 - Use `/prd` to create product requirements
+- Use `/learn-from-review` to capture lessons from code reviews
 ```
 
 ---
