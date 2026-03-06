@@ -16,6 +16,29 @@ claude plugin install dtk@dtk-marketplace
 
 > **Private repo?** Works the same way — just make sure your machine has SSH access to the repo.
 
+### Installation scopes
+
+By default, plugins are installed globally (user scope). You can choose a different scope depending on your needs:
+
+```bash
+# Global — available in all your projects (default)
+claude plugin install dtk@dtk-marketplace
+
+# Project — shared with the team via version control (.claude/settings.json)
+claude plugin install dtk@dtk-marketplace --scope project
+
+# Local — only for you in this project, gitignored (.claude/settings.local.json)
+claude plugin install dtk@dtk-marketplace --scope local
+```
+
+| Scope | Config file | Committed to git | Shared with team |
+|-------|-------------|------------------|------------------|
+| **user** (default) | `~/.claude/settings.json` | — | No |
+| **project** | `.claude/settings.json` | Yes | Yes |
+| **local** | `.claude/settings.local.json` | No | No |
+
+> **Tip:** Use `--scope project` when you want every developer on the team to have access to DTK automatically after cloning the repo.
+
 ### Local development
 
 ```bash
@@ -104,7 +127,8 @@ If auto-update is enabled for the marketplace, the plugin updates automatically 
 claude plugin update dtk@dtk-marketplace
 ```
 
+This works regardless of the installation scope — project-scoped installations will also receive updates when you run the command.
+
 ## License
 
 MIT
-# claude-base-dtk
