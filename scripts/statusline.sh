@@ -90,8 +90,8 @@ else
 fi
 
 bar=""
-[ "$filled" -gt 0 ] && bar=$(printf "%${filled}s" | tr ' ' '━')
-[ "$empty" -gt 0 ] && bar="${bar}$(printf "%${empty}s" | tr ' ' '╌')"
+for ((i=0; i<filled; i++)); do bar+="━"; done
+for ((i=0; i<empty; i++)); do bar+="╌"; done
 
 # ─── Git info (cached for performance) ───────────────────────────────────────
 CACHE_FILE="/tmp/dtk-statusline-git-cache"
