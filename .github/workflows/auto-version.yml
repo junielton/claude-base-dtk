@@ -1,0 +1,125 @@
+name: Auto Version Bump
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  version-bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      HEAD_COMMIT_MSG: ${{ github.event.head_commit.message }}
+
+    steps:
+      - name: Check if should skip
+        id: skip_check
+        run: |
+          if echo "$HEAD_COMMIT_MSG" | grep -q '\[skip ci\]'; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.skip_check.outputs.skip == 'false'
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get current version
+        if: steps.skip_check.outputs.skip == 'false'
+        id: current
+        run: |
+          VERSION=$(jq -r '.version' .claude-plugin/plugin.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Get last version tag
+        if: steps.skip_check.outputs.skip == 'false'
+        id: last_tag
+        run: |
+          LAST_TAG=$(git tag -l 'v*' --sort=-v:refname | head -1 || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            LAST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "tag=$LAST_TAG" >> $GITHUB_OUTPUT
+          echo "Last tag: $LAST_TAG"
+
+      - name: Analyze commits for bump type
+        if: steps.skip_check.outputs.skip == 'false'
+        id: bump
+        run: |
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+          COMMITS=$(git log "${LAST_TAG}..HEAD" --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s")
+
+          echo "Commits since last tag:"
+          echo "$COMMITS"
+
+          BUMP="none"
+
+          if echo "$COMMITS" | grep -qiE "^.*!:|BREAKING CHANGE"; then
+            BUMP="major"
+          elif echo "$COMMITS" | grep -qE "^feat(\(.*\))?:"; then
+            BUMP="minor"
+          elif echo "$COMMITS" | grep -qE "^(fix|refactor|perf|chore|docs|style|ci|test)(\(.*\))?:"; then
+            BUMP="patch"
+          fi
+
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+          echo "Bump type: $BUMP"
+
+      - name: Calculate new version
+        if: steps.skip_check.outputs.skip == 'false' && steps.bump.outputs.bump != 'none'
+        id: new_version
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          BUMP="${{ steps.bump.outputs.bump }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $NEW_VERSION"
+
+      - name: Update plugin.json
+        if: steps.skip_check.outputs.skip == 'false' && steps.bump.outputs.bump != 'none'
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          jq --arg v "$NEW_VERSION" '.version = $v' .claude-plugin/plugin.json > tmp.json
+          mv tmp.json .claude-plugin/plugin.json
+          cat .claude-plugin/plugin.json
+
+      - name: Commit and tag
+        if: steps.skip_check.outputs.skip == 'false' && steps.bump.outputs.bump != 'none'
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add .claude-plugin/plugin.json
+          git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
+          git tag "v${NEW_VERSION}"
+          git push origin main --tags
+
+      - name: Summary
+        if: always()
+        run: |
+          SKIP="${{ steps.skip_check.outputs.skip }}"
+          BUMP="${{ steps.bump.outputs.bump }}"
+
+          if [ "$SKIP" = "true" ]; then
+            echo "⏭️ Skipped — commit contains [skip ci]"
+          elif [ "$BUMP" = "none" ] || [ -z "$BUMP" ]; then
+            echo "ℹ️ No version bump — no conventional commit triggers found"
+          else
+            echo "✅ ${{ steps.current.outputs.version }} → ${{ steps.new_version.outputs.version }} ($BUMP)"
+          fi
