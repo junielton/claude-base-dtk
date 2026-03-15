@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Developer Toolkit — smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and more",
-    "version": "1.2.0"
+    "version": "1.2.1"
   },
   "plugins": [
     {
       "name": "dtk",
       "source": "./",
       "description": "Developer toolkit with smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and an informative statusline",
-      "version": "1.2.0"
+      "version": "1.2.1"
     }
   ]
 }
