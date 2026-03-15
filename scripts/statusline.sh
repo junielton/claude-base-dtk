@@ -89,9 +89,10 @@ else
     pct_color="${GREEN}"
 fi
 
-bar=""
-for ((i=0; i<filled; i++)); do bar+="━"; done
-for ((i=0; i<empty; i++)); do bar+="╌"; done
+filled_bar=""
+empty_bar=""
+for ((i=0; i<filled; i++)); do filled_bar+="█"; done
+for ((i=0; i<empty; i++)); do empty_bar+="░"; done
 
 # ─── Git info (cached for performance) ───────────────────────────────────────
 CACHE_FILE="/tmp/dtk-statusline-git-cache"
@@ -136,7 +137,7 @@ tokens_out=$(format_tokens "$total_out")
 
 line1="${CYAN}${BOLD}${model}${RESET}"
 line1+=" ${DIM}${model_id}${RESET}"
-line1+="  ${bar_color}${bar}${RESET} ${pct_color}${pct}%${RESET}"
+line1+="  ${bar_color}${filled_bar}${DIM}${empty_bar}${RESET} ${pct_color}${pct}%${RESET}"
 line1+="  ${DIM}${tokens_in}↓ ${tokens_out}↑${RESET}"
 
 # Cache info
