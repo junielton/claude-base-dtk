@@ -31,11 +31,11 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 | Skill | Command | Description |
 |-------|---------|-------------|
 | **smart-commit** | `/dtk:smart-commit` | Analyzes uncommitted changes, groups related files, and creates organized commits using Conventional Commits |
-| **learn-from-review** | `/dtk:learn-from-review` | Extracts actionable lessons from code review sessions and saves them to `docs/lessons/` |
+| **learn-from-review** | `/dtk:learn-from-review` | Extracts actionable lessons from code review sessions and persists them as individual files in `docs/lessons/` |
 
 ### Code review (with persistent memory)
 
-All review skills save results to `memories/reviews/` inside the project and maintain a `review-state.md` that tracks what was found, resolved, and decided — so each subsequent review knows what changed since the last one.
+All review skills save results to `memories/reviews/` and maintain a `review-state.md` that tracks what was found, resolved, and decided — so each subsequent review knows what changed since the last one. Reviews also load lessons from `docs/lessons/` as mandatory checkpoints.
 
 | Skill | Command | Description |
 |-------|---------|-------------|
@@ -50,12 +50,6 @@ All review skills save results to `memories/reviews/` inside the project and mai
 | **adr** | `/dtk:adr` | Creates Architecture Decision Records in `docs/adrs/` with context, alternatives, and consequences |
 | **prd** | `/dtk:prd` | Generates Product Requirements Documents through interactive refinement, saved to `docs/prds/` |
 
-### Project setup
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **bootstrap** | `/dtk:bootstrap` | Sets up project structure — creates `docs/` knowledge base, `.claude/` config, verifies everything, fetches remote resources |
-
 ### Design QA
 
 | Skill | Command | Description |
@@ -63,13 +57,26 @@ All review skills save results to `memories/reviews/` inside the project and mai
 | **dsqa** | `/dtk:dsqa` | Compares a Figma design against a running browser implementation — reports every deviation with exact values and fixes |
 | **implement-design** | `/dtk:implement-design` | Full workflow from Figma design to implemented component — handles context gathering, planning, execution, and DSQA verification |
 
-## Shared scripts
+### Project setup & tooling
 
-The plugin includes helper scripts in `scripts/` that skills use to avoid hardcoded project paths:
+| Skill | Command | Description |
+|-------|---------|-------------|
+| **bootstrap** | `/dtk:bootstrap` | Sets up project structure — `docs/` knowledge base, `bin/skill-scripts/`, `.claude/` config, and `CLAUDE.md` stub. Idempotent and safe to run multiple times |
+| **statusline** | `/dtk:statusline` | Enables a rich terminal statusline with context usage progress bar, git info, cost, and duration |
+| **update** | `/dtk:update` | Self-updates the plugin from the remote repository |
 
-- **`project-context.sh`** — Detects git owner, repo, current branch, base branch, and task ID from the current project
-- **`memory-manager.sh`** — Manages the `memories/reviews/` directory for persistent review state
-- **`lessons-loader.sh`** — Discovers lesson files from `docs/lessons/` or falls back to Claude's auto-memory
+## Scripts
+
+Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by domain. Bootstrap copies these to the target project so they're version-controlled alongside the code.
+
+| Directory | Scripts | Used by |
+|-----------|---------|---------|
+| `review/` | `project-context.sh`, `memory-manager.sh`, `lessons-loader.sh` | review, review-local, review-peer |
+| `lessons/` | `create-lesson.sh` | learn-from-review |
+| `dsqa/` | `capture-and-compare.mjs`, `deep-inspect.mjs`, `check-deps.sh`, `utils/color-utils.mjs` | dsqa |
+| `adr/` | `next-number.sh` | adr |
+| `commit/` | `gather-changes.sh` | smart-commit |
+| `shared/` | `figma-url-parser.sh` | dsqa, implement-design |
 
 ## Project structure created by bootstrap
 
@@ -77,24 +84,48 @@ After running `/dtk:bootstrap`, your project gets:
 
 ```
 your-project/
-├── CLAUDE.md                  ← project conventions + architecture
+├── CLAUDE.md                       ← conventions + knowledge base references
 ├── docs/
-│   ├── adrs/                  ← architecture decision records
+│   ├── adrs/                       ← architecture decision records
 │   │   └── index.md
-│   ├── lessons/               ← lessons learned from reviews
+│   ├── lessons/                    ← lessons learned from reviews
 │   │   ├── index.md
 │   │   ├── security/
 │   │   ├── code-patterns/
+│   │   ├── qa/
 │   │   ├── performance/
-│   │   └── ...
-│   └── prds/                  ← product requirements
-└── memories/
-    └── reviews/               ← persistent review state (per branch/PR)
+│   │   ├── framework/
+│   │   ├── testing/
+│   │   └── frontend/
+│   ├── plans/                      ← implementation plans
+│   └── prds/                       ← product requirements
+├── bin/skill-scripts/              ← reusable scripts (version-controlled)
+│   ├── review/
+│   ├── lessons/
+│   ├── dsqa/
+│   ├── adr/
+│   ├── commit/
+│   └── shared/
+├── .claude/                        ← tool config
+│   ├── skills/
+│   └── plans/
+└── memories/                       ← review state (gitignored)
+    └── reviews/
+```
+
+## Knowledge cycle
+
+```
+Code review → /dtk:learn-from-review → docs/lessons/{category}/NNN-slug.md
+                                                    ↓
+Next review → lessons-loader.sh → loads as mandatory checkpoints
+                                                    ↓
+                              Issues reference specific lesson file paths
 ```
 
 ## Statusline
 
-The plugin includes a rich terminal statusline showing model info, token usage, context window percentage, git status, and agent info. It's configured automatically via `settings.json`.
+The plugin includes a rich terminal statusline showing model info, context window progress bar, git status, cost, duration, and lines changed. Enable it with `/dtk:statusline`.
 
 ## Updating
 
@@ -107,4 +138,3 @@ claude plugin update dtk@dtk-marketplace
 ## License
 
 MIT
-# claude-base-dtk
