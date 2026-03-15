@@ -22,14 +22,22 @@ Compares a Figma component specification against a running browser implementatio
 - Component is purely backend with no visual output
 - User wants to create a design, not verify one (use `/implement-design`)
 
-## Prerequisites
-
-Scripts live in `bin/skill-scripts/dsqa/`:
-- `bin/skill-scripts/dsqa/capture-and-compare.mjs` — Takes element screenshot + extracts computed styles + pixel diff
-- `bin/skill-scripts/dsqa/deep-inspect.mjs` — Extracts full style tree (2 levels deep) for layout debugging
+## Step 0: Resolve Scripts
 
 ```bash
-bash bin/skill-scripts/dsqa/check-deps.sh || npm install --save-dev puppeteer pngjs pixelmatch
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
+
+## Prerequisites
+
+Scripts live in `$SCRIPTS/dsqa/`:
+- `capture-and-compare.mjs` — Takes element screenshot + extracts computed styles + pixel diff
+- `deep-inspect.mjs` — Extracts full style tree (2 levels deep) for layout debugging
+
+```bash
+bash $SCRIPTS/dsqa/check-deps.sh || npm install --save-dev puppeteer pngjs pixelmatch
 ```
 
 If scripts aren't found, fall back to **Playwright MCP method** (see Layer 2 fallback below).
@@ -64,7 +72,7 @@ Read modified source files from git diff. Compare each Figma value against CSS/J
 **Script method (preferred — 10-50x cheaper in tokens):**
 
 ```bash
-node bin/skill-scripts/dsqa/capture-and-compare.mjs \
+node $SCRIPTS/dsqa/capture-and-compare.mjs \
   --url "{devUrl}" \
   --selector "{selector}" \
   --output ./dsqa-output \
@@ -102,7 +110,7 @@ If viewport width differs from Figma frame by >10%, note in Minor section.
 If pixel diff shows mismatches but root styles look correct, the problem is in a child element:
 
 ```bash
-node bin/skill-scripts/dsqa/deep-inspect.mjs \
+node $SCRIPTS/dsqa/deep-inspect.mjs \
   --url "{devUrl}" \
   --selector "{selector}" \
   --depth 2

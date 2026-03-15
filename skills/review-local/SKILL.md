@@ -24,12 +24,20 @@ Reviews all changes on the current branch compared to a base branch (including u
 - Reviewing a PR already on GitHub (use `/review` for own, `/review-peer` for others)
 - No changes on the current branch
 
+## Step 0: Resolve Scripts
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
+
 ## Workflow
 
 ### 1. Gather Project Context
 
 ```bash
-bash bin/skill-scripts/review/project-context.sh --base-branch "$ARGUMENTS"
+bash $SCRIPTS/review/project-context.sh --base-branch "$ARGUMENTS"
 ```
 
 Extract `git_owner`, `git_repo`, `current_branch`, `base_branch`, and `project_root` from the JSON output.
@@ -42,7 +50,7 @@ Extract `git_owner`, `git_repo`, `current_branch`, `base_branch`, and `project_r
 - Load all lessons:
 
 ```bash
-bash bin/skill-scripts/review/lessons-loader.sh --content
+bash $SCRIPTS/review/lessons-loader.sh --content
 ```
 
 Read every lesson — each is a mandatory checkpoint during analysis.
@@ -75,7 +83,7 @@ Read every lesson — each is a mandatory checkpoint during analysis.
 **IMPORTANT: Do NOT read memory before completing the analysis. Prevents bias.**
 
 ```bash
-bash bin/skill-scripts/review/memory-manager.sh init "$CURRENT_BRANCH"
+bash $SCRIPTS/review/memory-manager.sh init "$CURRENT_BRANCH"
 ```
 
 - If `is_first_review` is true → skip reconciliation
@@ -98,7 +106,7 @@ bash bin/skill-scripts/review/memory-manager.sh init "$CURRENT_BRANCH"
 ### 7. Generate Output
 
 ```bash
-N=$(bash bin/skill-scripts/review/memory-manager.sh next-number "$CURRENT_BRANCH" "review")
+N=$(bash $SCRIPTS/review/memory-manager.sh next-number "$CURRENT_BRANCH" "review")
 ```
 
 Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
@@ -149,12 +157,12 @@ Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
 
 Get the template structure:
 ```bash
-bash bin/skill-scripts/review/memory-manager.sh template "$CURRENT_BRANCH" "review-local"
+bash $SCRIPTS/review/memory-manager.sh template "$CURRENT_BRANCH" "review-local"
 ```
 
 Fill in the template with actual data from the analysis (replace placeholders with real values), then save:
 ```bash
-echo "<completed state content>" | bash bin/skill-scripts/review/memory-manager.sh save-state "$CURRENT_BRANCH"
+echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-state "$CURRENT_BRANCH"
 ```
 
 ## Diff Reading Rules (CRITICAL)

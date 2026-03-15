@@ -21,12 +21,20 @@ Analyzes your own PR's diff and review comments, checks against the project know
 - Pre-PR local review (use `/review-local`)
 - No PR number provided
 
+## Step 0: Resolve Scripts
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
+
 ## Workflow
 
 ### 1. Gather Project Context
 
 ```bash
-bash bin/skill-scripts/review/project-context.sh
+bash $SCRIPTS/review/project-context.sh
 ```
 
 Extract `git_owner`, `git_repo`, and `project_root` from the JSON output. Use these values explicitly in ALL GitHub MCP calls.
@@ -39,7 +47,7 @@ Extract `git_owner`, `git_repo`, and `project_root` from the JSON output. Use th
 - Load all lessons:
 
 ```bash
-bash bin/skill-scripts/review/lessons-loader.sh --content
+bash $SCRIPTS/review/lessons-loader.sh --content
 ```
 
 From the lessons, identify which are relevant to the PR's changed files (by category) and use them as mandatory checkpoints.
@@ -78,7 +86,7 @@ For each comment: locate code, evaluate as valid / partially valid / not applica
 **IMPORTANT: Do NOT read memory before completing the analysis. Prevents bias.**
 
 ```bash
-bash bin/skill-scripts/review/memory-manager.sh init "PR-$ARGUMENTS"
+bash $SCRIPTS/review/memory-manager.sh init "PR-$ARGUMENTS"
 ```
 
 - If `is_first_review` is true → skip reconciliation
@@ -94,7 +102,7 @@ bash bin/skill-scripts/review/memory-manager.sh init "PR-$ARGUMENTS"
 ### 8. Generate Output
 
 ```bash
-N=$(bash bin/skill-scripts/review/memory-manager.sh next-number "PR-$ARGUMENTS" "review")
+N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "review")
 ```
 
 Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}.md`
@@ -146,12 +154,12 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.m
 
 Get the template structure:
 ```bash
-bash bin/skill-scripts/review/memory-manager.sh template "PR-$ARGUMENTS" "review"
+bash $SCRIPTS/review/memory-manager.sh template "PR-$ARGUMENTS" "review"
 ```
 
 Fill in the template with actual data from the analysis (replace placeholders with real values), then save:
 ```bash
-echo "<completed state content>" | bash bin/skill-scripts/review/memory-manager.sh save-state "PR-$ARGUMENTS"
+echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-state "PR-$ARGUMENTS"
 ```
 
 ## Diff Reading Rules (CRITICAL)

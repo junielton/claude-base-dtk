@@ -7,12 +7,20 @@ description: "Use when there are multiple uncommitted changes that should be org
 
 Analyze all uncommitted changes, understand the context and purpose of each change, group related files together, and create well-organized commits.
 
+## Step 0: Resolve Scripts
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
+
 ## Step 1: Gather Uncommitted Changes
 
 Collect all uncommitted changes (staged, unstaged, and untracked) as JSON:
 
 ```bash
-bash bin/skill-scripts/commit/gather-changes.sh
+bash $SCRIPTS/commit/gather-changes.sh
 ```
 
 ## Step 2: Analyze Each File

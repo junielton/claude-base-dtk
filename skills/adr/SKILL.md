@@ -17,6 +17,14 @@ Capture significant technical decisions and persist them as **individual files**
 
 Not for lessons from reviews (use `/dtk:learn-from-review`). ADRs capture **what was decided and why**.
 
+## Step 0: Resolve Scripts
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
+
 ## Step 1: Identify the Decision
 
 Use `$ARGUMENTS` as topic, or analyze current conversation for: new dependencies, schema choices, architectural patterns, API decisions, infrastructure choices, performance trade-offs.
@@ -41,7 +49,7 @@ Ask focused questions if critical context is missing (max 3-4 per ADR).
 ## Step 4: Determine Next Number
 
 ```bash
-NEXT=$(bash bin/skill-scripts/adr/next-number.sh)
+NEXT=$(bash $SCRIPTS/adr/next-number.sh)
 ```
 
 ## Step 5: Create the ADR File

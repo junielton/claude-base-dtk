@@ -53,13 +53,19 @@ Extract `fileKey` and `nodeId` from Figma URLs:
 
 ---
 
-## Phase 1.5 — Load Relevant Lessons (optional but recommended)
+## Phase 1.5 — Resolve Scripts & Load Lessons
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
 
 If `docs/lessons/` exists, load lessons relevant to frontend implementation:
 
 ```bash
-bash bin/skill-scripts/review/lessons-loader.sh --category frontend --content
-bash bin/skill-scripts/review/lessons-loader.sh --category code-patterns --content
+bash $SCRIPTS/review/lessons-loader.sh --category frontend --content
+bash $SCRIPTS/review/lessons-loader.sh --category code-patterns --content
 ```
 
 Use these as guardrails during implementation — avoid repeating past mistakes.

@@ -7,6 +7,14 @@ description: "Use after completing a code review session to extract actionable l
 
 Analyze the current code review session, extract actionable lessons, and persist each one as an individual file in `docs/lessons/{category}/`.
 
+## Step 0: Resolve Scripts
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+Use the output path as `$SCRIPTS` for all script commands below.
+
 ## Step 1: Analyze the Review
 
 Examine the current conversation and identify lessons across these categories:
@@ -49,7 +57,7 @@ For each lesson found, prepare it in this format:
 Before creating each lesson, check if a similar one already exists:
 
 ```bash
-bash bin/skill-scripts/lessons/create-lesson.sh \
+bash $SCRIPTS/lessons/create-lesson.sh \
   --category <category> --title "<title>" --severity <severity> --check-dup
 ```
 
@@ -63,7 +71,7 @@ bash bin/skill-scripts/lessons/create-lesson.sh \
 For each new lesson (that passed the duplicate check), create a file:
 
 ```bash
-echo '<lesson content in Step 2 format>' | bash bin/skill-scripts/lessons/create-lesson.sh \
+echo '<lesson content in Step 2 format>' | bash $SCRIPTS/lessons/create-lesson.sh \
   --category <category> --title "<title>" --severity <severity>
 ```
 
