@@ -1,11 +1,11 @@
 ---
 name: learn-from-review
-description: Extract actionable lessons from the current code review session and persist them into the project's CLAUDE.md knowledge base
+description: "Use after completing a code review session to extract actionable lessons and persist them as individual files in docs/lessons/."
 ---
 
 # Extract Lessons from Code Review
 
-You are a knowledge extraction assistant. Your task is to analyze the current code review session and extract actionable lessons learned, then persist them into the project's knowledge base.
+Analyze the current code review session, extract actionable lessons, and persist each one as an individual file in `docs/lessons/{category}/`.
 
 ## Step 1: Analyze the Review
 
@@ -16,15 +16,17 @@ Examine the current conversation and identify lessons across these categories:
 - **QA**: Edge cases missed, validation gaps, error handling issues, test coverage blind spots
 - **Performance**: N+1 queries, unnecessary loops, missing indexes, caching opportunities
 - **Framework**: Framework-specific gotchas, best practices, lifecycle issues
+- **Testing**: Test strategy issues, missing coverage patterns, test anti-patterns
+- **Frontend**: UI/UX issues, accessibility, responsive design, component patterns
 
 ## Step 2: Format Each Lesson
 
-For each lesson found, write it in this format:
+For each lesson found, prepare it in this format:
 
 ```markdown
 ### [Short descriptive title]
 
-**Category:** Security | Code Patterns | QA | Performance | Framework
+**Category:** Security | Code Patterns | QA | Performance | Framework | Testing | Frontend
 **Severity:** Critical | High | Medium | Low
 
 **Rule:** [One clear, actionable sentence — what to always do or never do]
@@ -42,23 +44,58 @@ For each lesson found, write it in this format:
 **Why:** [1-2 sentences explaining the risk or benefit]
 ```
 
-## Step 3: Update the Knowledge Base
+## Step 3: Check for Duplicates
 
-1. Read the file `CLAUDE.md` at the project root (create it if it doesn't exist).
-2. Look for an existing `## Lessons Learned` section. If it doesn't exist, add it at the end of the file.
-3. Under `## Lessons Learned`, check for each subsection: `### Security`, `### Code Patterns`, `### QA`, `### Performance`, `### Framework`.
-4. For each new lesson:
-   - **Check for duplicates**: If a similar rule already exists, update it only if the new version is more complete or accurate. Do not add duplicates.
-   - **Append** the new lesson under the appropriate subsection.
-5. Keep each lesson concise — the goal is quick reference during development, not documentation.
+Before creating each lesson, check if a similar one already exists:
 
-## Step 4: Summary
+```bash
+bash bin/skill-scripts/lessons/create-lesson.sh \
+  --category <category> --title "<title>" --severity <severity> --check-dup
+```
 
-After updating, output a brief summary:
+- If output starts with `DUPLICATE:` — read the existing file and decide:
+  - If the new version is more complete or accurate → delete the old file and create the new one
+  - If they are equivalent → skip (do not create a duplicate)
+- If output is `NO_DUPLICATE` → proceed to create
 
-- How many new lessons were added
-- How many existing lessons were updated
-- List the titles of all changes made
+## Step 4: Persist Each Lesson
+
+For each new lesson (that passed the duplicate check), create a file:
+
+```bash
+echo '<lesson content in Step 2 format>' | bash bin/skill-scripts/lessons/create-lesson.sh \
+  --category <category> --title "<title>" --severity <severity>
+```
+
+The script will:
+1. Create `docs/lessons/{category}/NNN-slug.md` with the content
+2. Update `docs/lessons/index.md` with a new row in the correct category table
+
+**Category directory mapping:**
+
+| Category | Directory |
+|----------|-----------|
+| Security | `security` |
+| Code Patterns | `code-patterns` |
+| QA | `qa` |
+| Performance | `performance` |
+| Framework | `framework` |
+| Testing | `testing` |
+| Frontend | `frontend` |
+
+## Step 5: Summary
+
+After creating all lessons, output:
+
+- How many new lessons were created (with file paths)
+- How many duplicates were skipped
+- How many existing lessons were updated (replaced)
+- List of created files:
+  ```
+  Created: docs/lessons/security/003-sql-injection-db-raw.md
+  Created: docs/lessons/performance/001-eager-load-in-loops.md
+  Skipped: "Mass Assignment Protection" (duplicate of security/002-mass-assignment-protection.md)
+  ```
 
 ## Rules
 
@@ -67,4 +104,5 @@ After updating, output a brief summary:
 - Prefer framework-specific guidance over language-generic tips when applicable
 - If no meaningful lessons were found in the review, say so — do not fabricate lessons
 - Write everything in English
-- Keep the CLAUDE.md file well-organized and scannable
+- **Never write lessons to CLAUDE.md** — all lessons go to `docs/lessons/` as individual files
+- Each lesson is one file — keep them focused and scannable

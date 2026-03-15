@@ -1,76 +1,68 @@
 ---
 name: review-local
-description: "Local code review — reviews all changes on current branch vs base branch (including uncommitted). Features persistent memory: tracks what was found, resolved, and decided across multiple review rounds. Use before opening a PR or pushing code."
+description: "Use when reviewing local changes before opening a PR, before pushing code, or when you want to check all branch changes against the base branch including uncommitted work."
 ---
 
 # Local Review: $ARGUMENTS
 
-Review all changes on the current branch compared to a base branch.
+## Overview
+
+Reviews all changes on the current branch compared to a base branch (including uncommitted changes). Features persistent memory that tracks what was found, resolved, and decided across multiple review rounds. Shared with `/review` and `/review-peer`.
 
 - **Base branch**: `$ARGUMENTS` (default: auto-detected by project-context script)
 - **Scope**: All changes from the current branch vs the base branch, including uncommitted changes
 
-## Step 0 — Gather Project Context
+## When to Use
 
-Run the shared scripts to get project identity and lessons:
+- Before opening a PR — final check
+- Before pushing code to remote
+- After fixing issues from a previous review round
+- Want to verify branch changes against base
+
+## When NOT to Use
+
+- Reviewing a PR already on GitHub (use `/review` for own, `/review-peer` for others)
+- No changes on the current branch
+
+## Workflow
+
+### 1. Gather Project Context
 
 ```bash
-# Get project context (owner, repo, branch, base branch)
-CONTEXT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/project-context.sh" --base-branch "$ARGUMENTS")
-echo "$CONTEXT"
-
-# List all available lessons
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/lessons-loader.sh" --json
+bash bin/skill-scripts/review/project-context.sh --base-branch "$ARGUMENTS"
 ```
 
 Extract `git_owner`, `git_repo`, `current_branch`, `base_branch`, and `project_root` from the JSON output.
 
-## Mandatory References
+### 2. Load Mandatory References
 
-Consult the project's CLAUDE.md, specifically:
-
-- **Code Conventions** — to validate patterns and standards
-- **Architecture** — to understand where each change fits
-
-Also load ALL lesson files using the lessons-loader script:
+- Read `CLAUDE.md` — project conventions and architecture
+- Read `docs/conventions.md` — project-specific conventions (if exists)
+- Read `docs/adrs/index.md` — architectural decisions that may apply
+- Load all lessons:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/lessons-loader.sh" --content
+bash bin/skill-scripts/review/lessons-loader.sh --content
 ```
 
 Read every lesson — each is a mandatory checkpoint during analysis.
 
-## Data Collection
+### 3. Collect Data
 
 1. Determine the base branch from the context script output
 2. Get the full diff: `git diff <base-branch>...HEAD` (committed changes on this branch)
 3. Get uncommitted changes: `git diff` (unstaged) and `git diff --cached` (staged)
 4. Combine all diffs for a complete picture of changes on this branch
 
-## Analysis Methodology (execute BEFORE generating any output)
+### 4. Analyze (execute BEFORE generating any output)
 
-### Pass 1 — Map Changes
+**Pass 1 — Map Changes:** List ALL changed files and their added lines (`+` only).
 
-List ALL changed files and their added lines (`+` only). Format:
+**Pass 2 — Understand Context:** For each changed block: what class/method, what it's trying to accomplish.
 
-- `file.php`: lines 12, 45-52, 89
+**Pass 3 — Check Against Lessons Learned:** For each change, verify if any lesson applies. Mandatory and explicit in output.
 
-### Pass 2 — Understand Context
-
-For each changed block, identify:
-
-- What class/method it belongs to
-- What it's trying to accomplish
-
-### Pass 3 — Check Against Lessons Learned
-
-For each change, verify if any Lesson Learned applies.
-This is mandatory and must be explicit in the output.
-
-### Pass 4 — General Analysis
-
-Evaluate each `+` line against:
-
+**Pass 4 — General Analysis:** Evaluate each `+` line against:
 - **Logical correctness**: does the code do what it should?
 - **Project standards**: follows conventions from CLAUDE.md?
 - **Security**: injection risks, mass assignment, missing auth checks, exposed data
@@ -78,55 +70,38 @@ Evaluate each `+` line against:
 - **Testability**: do the changes have test coverage? Should they?
 - **Side effects**: could the change break something elsewhere?
 
-## Diff Reading Rules (CRITICAL)
+### 5. Memory — Load (execute AFTER analysis, BEFORE generating output)
 
-- **Lines starting with `+`** = NEW code → ANALYZE THIS
-- **Lines starting with `-`** = DELETED code → IGNORE (already removed)
-- **Lines with no prefix** = CONTEXT only → DO NOT report issues unless new code directly impacts it
-- **NEVER report issues on context lines** unless directly affected by additions
-- **When in doubt whether a line was changed** → assume it was NOT changed, skip it
-
-## Memory Phase — Load (execute AFTER analysis, BEFORE generating output)
-
-**IMPORTANT: Do NOT read memory before completing the analysis above. This prevents bias from previous reviews.**
-
-**All review output files are saved in the project root's `memories/reviews/` directory.**
+**IMPORTANT: Do NOT read memory before completing the analysis. Prevents bias.**
 
 ```bash
-# Initialize memory for this branch
-MEMORY=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/memory-manager.sh" init "$CURRENT_BRANCH")
-echo "$MEMORY"
+bash bin/skill-scripts/review/memory-manager.sh init "$CURRENT_BRANCH"
 ```
 
 - If `is_first_review` is true → skip reconciliation
-- If `is_first_review` is false → read the state from stderr output and reconcile
+- If false → read the state and reconcile
 
-## Memory Phase — Reconcile (only if review-state.md existed)
-
-Compare your fresh findings with the state from previous reviews:
+### 6. Memory — Reconcile (only if review-state.md existed)
 
 **For each finding from your fresh analysis:**
+- Matches **Resolved Item** → verify fix still in place; if regressed, reopen
+- Matches **Decision** (e.g., "out of scope") → respect it, do NOT re-raise
+- Matches **Open Item** → mark "still pending"
+- Not in state → mark "new in this review"
 
-- If it matches a **Resolved Item** in state → verify the fix is still in place; if code regressed, reopen it
-- If it matches a **Decision** (e.g., "out of scope") → respect the decision, do NOT re-raise
-- If it matches an **Open Item** → mark as "still pending"
-- If it's not in the state at all → mark as "new in this review"
-
-**For each Open Item from the state NOT found in your fresh analysis:**
-
-- If the code in that area changed → likely resolved, move to Resolved
-- If the code is unchanged → may have been missed; keep as Open
+**For each Open Item from state NOT in fresh analysis:**
+- Code in that area changed → likely resolved, move to Resolved
+- Code unchanged → may have been missed; keep as Open
 
 **First review (no state):** skip this phase entirely.
 
-## Output
+### 7. Generate Output
 
 ```bash
-# Get next review number
-N=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/memory-manager.sh" next-number "$CURRENT_BRANCH" "review")
+N=$(bash bin/skill-scripts/review/memory-manager.sh next-number "$CURRENT_BRANCH" "review")
 ```
 
-Save the output to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
+Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
 
 ```
 ## Local Review — <current-branch> vs <base-branch>
@@ -146,9 +121,7 @@ Save the output to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md
 - [ ] `file:line` — Description of the improvement
 ```
 
-### Reconciliation with Previous Reviews (only for subsequent reviews)
-
-If this is a subsequent review, append:
+**Reconciliation (only for subsequent reviews):**
 
 ```
 ## Reconciliation with Previous Reviews
@@ -166,41 +139,38 @@ If this is a subsequent review, append:
 - `file:line` — "Out of scope" (decided in review-N)
 ```
 
-### Always Include: Final Summary
-
+**Final Summary (always include):**
 - Total files analyzed
 - Total issues found by severity
 - Lessons Learned that applied (list which ones)
 - Overall assessment: Ready to commit/push | Needs fixes first
 
-## Memory Phase — Save (execute AFTER generating output)
+### 8. Memory — Save (execute AFTER generating output)
 
-Update (or create) `review-state.md`:
-
+Get the template structure:
 ```bash
-cat <<'STATE' | bash "${CLAUDE_PLUGIN_ROOT}/scripts/memory-manager.sh" save-state "$CURRENT_BRANCH"
-# Review State — {branch-name}
-
-## Metadata
-- Identifier: {branch-name}
-- Branch: {branch-name}
-- Reviews: {count} (last: YYYY-MM-DD)
-- Types: review
-
-## Decisions
-- `file:line` — Description of decision (review-N)
-
-## Coverage
-- Files analyzed: file1, file2, ...
-- Key methods: Class::method(), ...
-
-## Open Items
-- [ ] `file:line` — Description (raised review-N, still open review-M)
-
-## Resolved Items
-- [x] `file:line` — Description (raised review-N, resolved review-M)
-
-## Notes
-- Observations not tied to specific code lines
-STATE
+bash bin/skill-scripts/review/memory-manager.sh template "$CURRENT_BRANCH" "review-local"
 ```
+
+Fill in the template with actual data from the analysis (replace placeholders with real values), then save:
+```bash
+echo "<completed state content>" | bash bin/skill-scripts/review/memory-manager.sh save-state "$CURRENT_BRANCH"
+```
+
+## Diff Reading Rules (CRITICAL)
+
+- **Lines starting with `+`** = NEW code → ANALYZE THIS
+- **Lines starting with `-`** = DELETED code → IGNORE (already removed)
+- **Lines with no prefix** = CONTEXT only → DO NOT report issues unless new code directly impacts it
+- **NEVER report issues on context lines** unless directly affected by additions
+- **When in doubt whether a line was changed** → assume it was NOT changed, skip it
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Reporting issues on deleted (`-`) lines | Only analyze added (`+`) lines |
+| Re-raising decided items | Check memory state — respect previous decisions |
+| Reading memory before analysis | Load memory AFTER analysis to prevent bias |
+| Forgetting uncommitted changes | Combine `git diff base...HEAD` + `git diff` + `git diff --cached` |
+| Reviewing context lines as new code | Only report issues on `+` lines |

@@ -1,25 +1,18 @@
 ---
 name: smart-commit
-description: Analyze uncommitted changes, group related files, and create well-organized commits with Conventional Commits messages
+description: "Use when there are multiple uncommitted changes that should be organized into logical, grouped commits with Conventional Commits messages."
 ---
 
 # Smart Auto-Commit with Grouped Changes
 
-You are a Git commit assistant. Your task is to analyze all uncommitted changes in the current branch, understand the context and purpose of each change, group related files together, and create well-organized commits with clear, descriptive messages.
+Analyze all uncommitted changes, understand the context and purpose of each change, group related files together, and create well-organized commits.
 
 ## Step 1: Gather Uncommitted Changes
 
-Run these commands to get the full picture:
+Collect all uncommitted changes (staged, unstaged, and untracked) as JSON:
 
 ```bash
-# Staged files
-git diff --cached --name-status
-
-# Unstaged tracked files
-git diff --name-status
-
-# Untracked files
-git ls-files --others --exclude-standard
+bash bin/skill-scripts/commit/gather-changes.sh
 ```
 
 ## Step 2: Analyze Each File

@@ -1,11 +1,9 @@
 ---
 name: update
-description: "Update the DTK plugin to the latest version — pulls latest changes from the remote repo and reinstalls the plugin."
+description: "Use when the user wants to update the DTK plugin to the latest version."
 ---
 
 # /dtk:update — Update DTK Plugin
-
-You are updating the DTK plugin to the latest version.
 
 ## Steps
 

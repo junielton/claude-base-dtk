@@ -33,7 +33,11 @@
 
 import { parseArgs } from "node:util";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+import { injectRgbToHex } from "./utils/color-utils.mjs";
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -117,6 +121,9 @@ try {
     timeout: Number(args.timeout),
   });
 
+  // Inject shared rgbToHex helper into browser context
+  await injectRgbToHex(page);
+
   // Optional: wait for extra selector
   if (args["wait-for"]) {
     console.error(`→ Waiting for ${args["wait-for"]} ...`);
@@ -180,35 +187,14 @@ try {
 
   console.error(`→ Screenshot saved: ${screenshotPath}`);
 
-  // Extract computed styles
+  // Extract computed styles (uses window.__rgbToHex injected earlier)
   const computedStyles = await elementHandle.evaluate((el) => {
     const s = window.getComputedStyle(el);
-
-    // Helper: rgb to hex
-    const rgbToHex = (rgb) => {
-      if (!rgb || rgb === "rgba(0, 0, 0, 0)") return "transparent";
-      const match = rgb.match(
-        /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/
-      );
-      if (!match) return rgb;
-      const [, r, g, b, a] = match;
-      if (a !== undefined && parseFloat(a) === 0) return "transparent";
-      return (
-        "#" +
-        [r, g, b]
-          .map((x) =>
-            parseInt(x)
-              .toString(16)
-              .padStart(2, "0")
-          )
-          .join("")
-          .toUpperCase()
-      );
-    };
+    const hex = window.__rgbToHex;
 
     return {
-      backgroundColor: rgbToHex(s.backgroundColor),
-      color: rgbToHex(s.color),
+      backgroundColor: hex(s.backgroundColor),
+      color: hex(s.color),
       fontFamily: s.fontFamily,
       fontSize: s.fontSize,
       fontWeight: s.fontWeight,
@@ -237,28 +223,9 @@ try {
     };
   });
 
-  // Extract children computed styles (first level only, for layout comparison)
+  // Extract children computed styles (uses window.__rgbToHex injected earlier)
   const childrenStyles = await elementHandle.evaluate((el) => {
-    const rgbToHex = (rgb) => {
-      if (!rgb || rgb === "rgba(0, 0, 0, 0)") return "transparent";
-      const match = rgb.match(
-        /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/
-      );
-      if (!match) return rgb;
-      const [, r, g, b, a] = match;
-      if (a !== undefined && parseFloat(a) === 0) return "transparent";
-      return (
-        "#" +
-        [r, g, b]
-          .map((x) =>
-            parseInt(x)
-              .toString(16)
-              .padStart(2, "0")
-          )
-          .join("")
-          .toUpperCase()
-      );
-    };
+    const hex = window.__rgbToHex;
 
     return [...el.children].slice(0, 10).map((child, i) => {
       const s = window.getComputedStyle(child);
@@ -267,8 +234,8 @@ try {
         tag: child.tagName.toLowerCase(),
         className: child.className?.toString().slice(0, 80) || "",
         text: child.textContent?.slice(0, 50) || "",
-        backgroundColor: rgbToHex(s.backgroundColor),
-        color: rgbToHex(s.color),
+        backgroundColor: hex(s.backgroundColor),
+        color: hex(s.color),
         fontSize: s.fontSize,
         fontWeight: s.fontWeight,
         padding: `${s.paddingTop} ${s.paddingRight} ${s.paddingBottom} ${s.paddingLeft}`,

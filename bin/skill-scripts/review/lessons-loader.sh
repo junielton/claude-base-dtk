@@ -1,7 +1,11 @@
 #!/bin/bash
-# DTK — Lessons Loader
-# Discovers and lists lesson files from the project's knowledge base.
-# Usage: bash lessons-loader.sh [--category security] [--list] [--content]
+#
+# Loads lessons from docs/lessons/ for use by review skills.
+#
+# Usage:
+#   bash bin/skill-scripts/review/lessons-loader.sh --json      # Index with paths and categories
+#   bash bin/skill-scripts/review/lessons-loader.sh --content    # Full content of all lessons
+#   bash bin/skill-scripts/review/lessons-loader.sh --category security  # Filter by category
 #
 # Searches in order:
 #   1. docs/lessons/ (dtk standard — version-controlled)

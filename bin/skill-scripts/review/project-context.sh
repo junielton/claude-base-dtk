@@ -1,7 +1,10 @@
 #!/bin/bash
-# DTK — Project Context Detector
-# Outputs JSON with project identity, git info, and branch data.
-# Usage: bash project-context.sh [--base-branch main]
+#
+# Extracts project metadata from git for use by review skills.
+# Outputs JSON with git_owner, git_repo, project_root, current_branch, and more.
+#
+# Usage:
+#   bash bin/skill-scripts/review/project-context.sh [--base-branch <branch>]
 
 set -euo pipefail
 

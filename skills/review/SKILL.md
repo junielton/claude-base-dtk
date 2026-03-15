@@ -1,73 +1,65 @@
 ---
 name: review
-description: "PR review (your own PR) — analyzes diffs, checks against project knowledge base (ADRs, lessons), evaluates existing comments, and outputs categorized tasks. Features persistent memory shared with review-local and review-peer. Use when reviewing your own pull request."
+description: "Use when reviewing your own pull request, processing PR review comments, or triaging feedback on a PR you authored."
 ---
 
-# PR Review: $ARGUMENTS
+# PR Review: #$ARGUMENTS
 
-## Step 0 — Gather Project Context
+## Overview
+
+Analyzes your own PR's diff and review comments, checks against the project knowledge base (ADRs, lessons, conventions), and outputs categorized tasks. Features persistent memory shared with `/review-local` and `/review-peer`.
+
+## When to Use
+
+- Reviewing your own PR after receiving comments
+- Triaging review feedback on a PR you authored
+- Re-reviewing after pushing fixes to address comments
+
+## When NOT to Use
+
+- Reviewing someone else's PR (use `/review-peer`)
+- Pre-PR local review (use `/review-local`)
+- No PR number provided
+
+## Workflow
+
+### 1. Gather Project Context
 
 ```bash
-# Get project context
-CONTEXT=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/project-context.sh")
-echo "$CONTEXT"
-
-# List all available lessons
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/lessons-loader.sh" --json
+bash bin/skill-scripts/review/project-context.sh
 ```
 
-Extract `git_owner`, `git_repo`, and `project_root` from the JSON output.
+Extract `git_owner`, `git_repo`, and `project_root` from the JSON output. Use these values explicitly in ALL GitHub MCP calls.
 
-## Repository Context
+### 2. Load Mandatory References
 
-- **Owner**: (from project-context output)
-- **Repo**: (from project-context output)
-- **PR**: #$ARGUMENTS
-
-Use these values explicitly in ALL GitHub MCP calls. Do not attempt to discover the repository automatically.
-
-## Mandatory References
-
-Before analyzing, load the project's knowledge base:
-
-1. Read `CLAUDE.md` — project conventions and architecture
-2. Read `docs/adrs/index.md` — architectural decisions that may apply
-3. Load all lessons:
+- Read `CLAUDE.md` — project conventions and architecture
+- Read `docs/conventions.md` — project-specific conventions (if exists)
+- Read `docs/adrs/index.md` — architectural decisions that may apply
+- Load all lessons:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/lessons-loader.sh" --content
+bash bin/skill-scripts/review/lessons-loader.sh --content
 ```
 
 From the lessons, identify which are relevant to the PR's changed files (by category) and use them as mandatory checkpoints.
 
-## Data Collection (GitHub MCP)
+### 3. Collect Data (GitHub MCP)
 
 1. Fetch the **full diff** of PR #$ARGUMENTS from `{git_owner}/{git_repo}`
 2. Collect **all review comments**, grouped by author
 3. Identify which files/lines each comment references
 
-## Analysis Methodology (execute BEFORE generating any output)
+### 4. Analyze (execute BEFORE generating any output)
 
-### Pass 1 — Map Changes
+**Pass 1 — Map Changes:** List ALL changed files and their added lines (`+` only).
 
-List ALL changed files and their added lines (`+` only):
+**Pass 2 — Understand Context:** For each changed block: what class/method, what it's trying to accomplish.
 
-- `file.php`: lines 12, 45-52, 89
+**Pass 3 — Check Against Lessons Learned:** For each change, verify if any lesson applies. **Reference the specific file path**:
+Example: "Violates `docs/lessons/security/001-sql-injection-db-raw.md` — using DB::raw with interpolation"
 
-### Pass 2 — Understand Context
-
-For each changed block: what class/method, what it's trying to accomplish.
-
-### Pass 3 — Check Against Lessons Learned
-
-For each change, verify if any lesson applies. **Reference the specific file path**:
-
-Example: "⚠️ Violates `docs/lessons/security/001-sql-injection-db-raw.md` — using DB::raw with interpolation"
-
-### Pass 4 — General Analysis
-
-Evaluate each `+` line:
-
+**Pass 4 — General Analysis:** Evaluate each `+` line:
 - **Logical correctness**: does the code do what it should?
 - **Project standards**: follows CLAUDE.md conventions?
 - **Security**: injection, mass assignment, auth gaps, data exposure
@@ -75,49 +67,39 @@ Evaluate each `+` line:
 - **Testability**: coverage exists or needed?
 - **Side effects**: could it break something?
 
-## Diff Reading Rules (CRITICAL)
-
-- **`+` lines** = NEW code → ANALYZE THIS
-- **`-` lines** = DELETED → IGNORE
-- **No prefix** = CONTEXT → skip unless directly impacted
-- **When in doubt** → assume NOT changed, skip
-
-## Review Comments Analysis
+### 5. Evaluate Review Comments
 
 Priority: @human (tech lead) → other humans → Copilot/AIs (only if relevant).
 
 For each comment: locate code, evaluate as valid / partially valid / not applicable, justify.
 
-## Memory Phase — Load (execute AFTER analysis, BEFORE generating output)
+### 6. Memory — Load (execute AFTER analysis, BEFORE generating output)
 
 **IMPORTANT: Do NOT read memory before completing the analysis. Prevents bias.**
 
 ```bash
-MEMORY=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/memory-manager.sh" init "PR-$ARGUMENTS")
-echo "$MEMORY"
+bash bin/skill-scripts/review/memory-manager.sh init "PR-$ARGUMENTS"
 ```
 
 - If `is_first_review` is true → skip reconciliation
 - If false → read state and reconcile
 
-## Memory Phase — Reconcile (only if review-state.md existed)
-
-Compare fresh findings with previous state:
+### 7. Memory — Reconcile (only if review-state.md existed)
 
 - Matches **Resolved Item** → verify fix still in place
 - Matches **Decision** → respect it, do NOT re-raise
 - Matches **Open Item** → mark "still pending"
 - Not in state → mark "new in this review"
 
-## Output
+### 8. Generate Output
 
 ```bash
-N=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/memory-manager.sh" next-number "PR-$ARGUMENTS" "review")
+N=$(bash bin/skill-scripts/review/memory-manager.sh next-number "PR-$ARGUMENTS" "review")
 ```
 
 Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}.md`
 
-### Valid comments → Tasks
+**Valid comments → Tasks:**
 
 ```
 ## Tasks — PR #$ARGUMENTS
@@ -132,13 +114,13 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}.md`
 - [ ] `file:line` — Description
 ```
 
-### Non-applicable comments → pr-review-responses.md
+**Non-applicable comments → responses:**
 
-Create `pr-review-responses.md` at project root:
+Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.md`
 - **For humans**: friendly, modest, justified with code references
 - **For AIs**: direct, no fluff
 
-### Reconciliation (only for subsequent reviews)
+**Reconciliation (only for subsequent reviews):**
 
 ```
 ## Reconciliation with Previous Reviews
@@ -153,30 +135,38 @@ Create `pr-review-responses.md` at project root:
 - `file:line` — Description
 ```
 
-### Final Summary (always include)
-
+**Final Summary (always include):**
 - Total comments analyzed
 - Tasks vs. responses count
 - Lessons that applied (**file paths**)
 - ADRs that were relevant
 - Overall: ✅ Approve | ⚠️ Approve with Comments | ❌ Request Changes
 
-## Memory Phase — Save (execute AFTER generating output)
+### 9. Memory — Save (execute AFTER generating output)
 
+Get the template structure:
 ```bash
-cat <<'STATE' | bash "${CLAUDE_PLUGIN_ROOT}/scripts/memory-manager.sh" save-state "PR-$ARGUMENTS"
-# Review State — PR #$ARGUMENTS
-
-## Metadata
-- Identifier: PR #$ARGUMENTS
-- Branch: {branch name}
-- Reviews: {count} (last: YYYY-MM-DD)
-- Types: review
-
-## Decisions
-## Coverage
-## Open Items
-## Resolved Items
-## Notes
-STATE
+bash bin/skill-scripts/review/memory-manager.sh template "PR-$ARGUMENTS" "review"
 ```
+
+Fill in the template with actual data from the analysis (replace placeholders with real values), then save:
+```bash
+echo "<completed state content>" | bash bin/skill-scripts/review/memory-manager.sh save-state "PR-$ARGUMENTS"
+```
+
+## Diff Reading Rules (CRITICAL)
+
+- **`+` lines** = NEW code → ANALYZE THIS
+- **`-` lines** = DELETED → IGNORE
+- **No prefix** = CONTEXT → skip unless directly impacted
+- **When in doubt** → assume NOT changed, skip
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Reporting issues on deleted (`-`) lines | Only analyze added (`+`) lines |
+| Re-raising decided items | Check memory state — respect previous decisions |
+| Reading memory before analysis | Load memory AFTER analysis to prevent bias |
+| Missing lesson references | Always reference specific `docs/lessons/` file paths |
+| Creating responses file at project root | Save to `memories/reviews/PR-{}/` directory |

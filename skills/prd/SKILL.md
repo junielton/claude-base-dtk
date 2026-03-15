@@ -1,11 +1,11 @@
 ---
 name: prd
-description: PRD Generator — transforms rough task descriptions into well-structured Product Requirements Documents with interactive refinement. Use when starting a new feature, defining requirements, or formalizing specifications.
+description: "Use when starting a new feature, defining requirements, or formalizing specifications from a rough task description."
 ---
 
 # PRD Generator
 
-You are a senior product manager and technical analyst. Transform a rough task description into a well-structured PRD.
+Transform a rough task description into a well-structured PRD through interactive refinement.
 
 ## Input
 

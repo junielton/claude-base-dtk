@@ -1,13 +1,11 @@
 ---
 name: statusline
-description: "Enable the DTK visual statusline — progress bar with context usage, git info, cost, and duration. Writes the config to your user settings so it persists across sessions."
+description: "Use when the user wants to enable or configure the DTK visual statusline with progress bar, git info, cost, and duration."
 ---
 
 # /dtk:statusline — Enable Visual Statusline
 
-You are configuring the DTK statusline for the user.
-
-## What to do
+## Steps
 
 1. Determine the plugin root path by running:
 

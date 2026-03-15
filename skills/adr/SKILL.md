@@ -1,11 +1,11 @@
 ---
 name: adr
-description: Architecture Decision Record — captures significant technical decisions with context, alternatives, and consequences as versioned files in docs/adrs/. Use when making architectural choices, introducing new patterns, or choosing between alternatives.
+description: "Use when making architectural choices, introducing new patterns, choosing between alternatives, or revising a previous technical decision."
 ---
 
 # /adr — Architecture Decision Record
 
-You are an architecture decision recorder. Your task is to capture significant technical decisions and persist them as **individual files** in `docs/adrs/`.
+Capture significant technical decisions and persist them as **individual files** in `docs/adrs/`.
 
 ## When to Use
 
@@ -15,7 +15,7 @@ You are an architecture decision recorder. Your task is to capture significant t
 - Deliberate trade-off accepted
 - Previous decision being revised
 
-Not for lessons from reviews (use `/learn`). ADRs capture **what was decided and why**.
+Not for lessons from reviews (use `/dtk:learn-from-review`). ADRs capture **what was decided and why**.
 
 ## Step 1: Identify the Decision
 
@@ -41,8 +41,7 @@ Ask focused questions if critical context is missing (max 3-4 per ADR).
 ## Step 4: Determine Next Number
 
 ```bash
-LAST=$(ls docs/adrs/ADR-*.md 2>/dev/null | sort -t- -k2 -n | tail -1 | grep -oP 'ADR-\K\d{3}')
-NEXT=$(printf "%03d" $((10#${LAST:-0} + 1)))
+NEXT=$(bash bin/skill-scripts/adr/next-number.sh)
 ```
 
 ## Step 5: Create the ADR File

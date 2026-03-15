@@ -20,6 +20,8 @@
 import { parseArgs } from "node:util";
 import { writeFile, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { injectRgbToHex } from "./utils/color-utils.mjs";
 
 const { values: args } = parseArgs({
   options: {
@@ -61,6 +63,9 @@ try {
     timeout: Number(args.timeout),
   });
 
+  // Inject shared rgbToHex helper into browser context
+  await injectRgbToHex(page);
+
   const el = await page.$(args.selector);
   if (!el) {
     console.log(JSON.stringify({ error: `Selector not found: ${args.selector}` }));
@@ -68,12 +73,7 @@ try {
   }
 
   const tree = await el.evaluate((root, depth) => {
-    const rgbToHex = (rgb) => {
-      if (!rgb || rgb === "rgba(0, 0, 0, 0)") return "transparent";
-      const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (!m) return rgb;
-      return "#" + [m[1], m[2], m[3]].map(x => parseInt(x).toString(16).padStart(2, "0")).join("").toUpperCase();
-    };
+    const hex = window.__rgbToHex;
 
     const extract = (el, currentDepth) => {
       const s = window.getComputedStyle(el);
@@ -97,8 +97,8 @@ try {
           gap: s.gap !== "normal" ? s.gap : undefined,
           alignItems: s.alignItems !== "normal" ? s.alignItems : undefined,
           justifyContent: s.justifyContent !== "normal" ? s.justifyContent : undefined,
-          backgroundColor: rgbToHex(s.backgroundColor),
-          color: rgbToHex(s.color),
+          backgroundColor: hex(s.backgroundColor),
+          color: hex(s.color),
           fontSize: s.fontSize,
           fontWeight: s.fontWeight !== "400" ? s.fontWeight : undefined,
           fontFamily: s.fontFamily?.split(",")[0]?.trim().replace(/['"]/g, ""),
