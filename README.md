@@ -4,23 +4,36 @@ A plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with 
 
 ## Installation
 
-### From a Git repository (recommended)
+### 1. Add the marketplace
 
 ```bash
-# Add the marketplace
 claude plugin marketplace add git@github.com:junielton/claude-base-dtk.git
-
-# Install the plugin
-claude plugin install dtk@dtk-marketplace
 ```
 
 > **Private repo?** Works the same way — just make sure your machine has SSH access to the repo.
 
-### Local development
+### 2. Install the plugin
+
+Choose the scope that fits your use case:
+
+```bash
+# Global — available in all your projects (default)
+claude plugin install dtk@dtk-marketplace
+
+# Project — shared with the team via .claude/settings.json (committed to git)
+claude plugin install dtk@dtk-marketplace --scope project
+
+# Local — only you, only this project, gitignored (.claude/settings.local.json)
+claude plugin install dtk@dtk-marketplace --scope local
+```
+
+### Local development (without installing)
 
 ```bash
 claude --plugin-dir /path/to/dtk
 ```
+
+Loads the plugin directly from a local path — useful for development and testing.
 
 ## Skills
 
