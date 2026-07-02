@@ -129,13 +129,34 @@ git commit -m "<type>(<scope>): <summary>" -m "<body>"
 - If a file has mixed changes (part of two features), use `git add -p <file>` to stage only relevant hunks
 - Verify each commit succeeds before moving to the next
 
-## Step 7: Summary
+## Step 7: Push
+
+After the commits are created, push the branch by default — the user almost
+always wants them pushed immediately, so don't leave them to ask.
+
+```bash
+git push                       # if an upstream is already set
+git push -u origin HEAD        # if there is no upstream yet
+```
+
+**Push guards:**
+
+- If the current branch is a **protected branch** (`main`, `master`, `develop`,
+  `production`, `staging`), do **not** push automatically — confirm with the user
+  first, since committing straight to those is unusual for feature work.
+- **Never force-push.** Regular push only.
+- If the push is rejected (remote is ahead), stop and report the exact message —
+  do not pull, rebase, or force anything without the user deciding.
+- If the user said "commit only, don't push" (or similar), skip this step.
+
+## Step 8: Summary
 
 After all commits are done, output:
 
 1. A table showing each commit: hash (short), message, and files included
 2. Total number of commits created
 3. Run `git log --oneline -n <number_of_commits>` to confirm
+4. Confirm the push result (branch pushed / upstream set / or why it was skipped)
 
 ## Rules
 
