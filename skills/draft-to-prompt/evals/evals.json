@@ -1,0 +1,52 @@
+{
+  "skill_name": "draft-to-prompt",
+  "evals": [
+    {
+      "id": 0,
+      "eval_name": "trivial-task-routes-cheap-no-harness",
+      "prompt": "cria um prompt pra uma sessão trocar a cor do botão de submit pra verde no LoginForm.vue do projeto capy",
+      "expected_output": "A short prompt routed to Haiku (low effort) or at most Sonnet. No Fable, no orchestrator, no /loop or /goal. The routing justification should mention the task is trivial/mechanical.",
+      "files": [],
+      "assertions": [
+        "routes-to-cheap-model: the run instructions name Haiku (ideal) or Sonnet as the target model — NOT Opus and NOT Fable",
+        "no-harness-on-trivial-task: the response does not prescribe /loop, /goal or /orchestrator for this one-shot mechanical change",
+        "model-choice-outside-prompt-body: the fenced prompt body contains no instruction telling the session which model to use; the model appears only in run instructions (boot flag / /model)"
+      ]
+    },
+    {
+      "id": 1,
+      "eval_name": "orchestration-task-boots-goal-plus-loop",
+      "prompt": "preciso de um prompt de boot pra uma sessão que vai coordenar a implementação da feature T120 no worktree feat-capy-learn-mode: despachar executores, acompanhar aprovações, verificar evidência e só me chamar nos gates. quero que ela se mantenha rodando sozinha até acabar",
+      "expected_output": "A boot prompt that instructs the session to invoke /orchestrator (coordination-only contract), then '/goal set <objective>' to persist the mission, then drive ticks via /loop (self-paced). Model choice justified (big model acceptable here); crucially the prompt must NOT claim it can change the session's own model — model is picked at session boot/dispatch time.",
+      "files": [],
+      "assertions": [
+        "mission-stack-bootstrapped: the generated boot prompt instructs the session to enter the orchestrator contract, persist mission state via goal set, and drive recurring ticks via the loop skill",
+        "skills-invoked-as-tools-not-slash-text: harness activation is phrased as instructions to invoke skills (or the message literally starts with the slash command) — not bare '/x' embedded mid-text as if it self-executes",
+        "no-model-switch-claim: nothing claims the prompt will change the session's own model; the boot model is given in run instructions",
+        "worker-models-pinned: the prompt pins cheaper models (haiku/sonnet) for dispatched executors or subagents instead of letting them inherit an expensive parent model"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "user-asks-fable-for-simple-task-pushback",
+      "prompt": "faz um prompt pro fable 5 xhigh resumir os últimos 20 commits do repo num changelog semanal",
+      "expected_output": "The skill pushes back: this is a short, well-defined, repeatable task — routes to Haiku or Sonnet with a note about why Fable is not warranted (cost), while still delivering the prompt. Fable only as last resort must be visible in the routing rationale.",
+      "files": [],
+      "assertions": [
+        "pushes-back-on-fable: the response explicitly recommends a cheaper model (haiku or sonnet) for this short repeatable task, with a cost rationale, instead of silently accepting Fable",
+        "still-delivers-usable-prompt: a complete fenced prompt is delivered anyway (the pushback never holds the deliverable hostage)"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "model-mechanics-stated-correctly",
+      "prompt": "escreve um prompt que faça a sessão usar opus pra tarefa principal mas subir subagentes haiku pra varrer os arquivos do repo procurando strings hardcoded",
+      "expected_output": "The delivered prompt/run-instructions must reflect the real mechanics: the session's own model cannot be changed by prompt text (it's set via /model, --model, or dispatch config); subagent models CAN be directed per-call (Agent tool model param / agent frontmatter). The prompt should direct subagents to haiku explicitly and tell the user to boot/switch the session to opus themselves.",
+      "files": [],
+      "assertions": [
+        "session-model-set-at-boot-not-in-prompt: the response tells the user to put the session on Opus themselves (/model or --model or dispatch config) and does NOT pretend the prompt text switches the session's model",
+        "subagent-models-pinned-haiku: the fenced prompt explicitly directs the sweep subagents to run on haiku (model parameter on the agent call or agent-definition model field)"
+      ]
+    }
+  ]
+}

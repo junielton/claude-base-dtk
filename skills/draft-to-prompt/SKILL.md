@@ -1,13 +1,17 @@
 ---
 name: draft-to-prompt
-description: Transform a rough idea, voice-note-style draft, or vague request into a production-quality prompt for Claude models (Fable 5, Opus, Sonnet). Use this skill whenever the user shares a messy prompt draft and asks to improve/refine it, asks "help me write a prompt for X", asks which model or technique fits a task, or mentions prompt engineering, prompt refinement, or converting an idea into a prompt — even if they don't say the word "prompt" but are clearly describing a task they want to delegate to an AI model.
+description: Transform a rough idea, voice-note-style draft, or vague request into a production-quality prompt for Claude models (Haiku, Sonnet, Opus, Fable 5). Use this skill whenever the user shares a messy prompt draft and asks to improve/refine it, asks "help me write a prompt for X", asks which model or technique fits a task, or mentions prompt engineering, prompt refinement, or converting an idea into a prompt — even if they don't say the word "prompt" but are clearly describing a task they want to delegate to an AI model. Also use it when the user wants a boot prompt for a new session, worktree, or dispatched agent.
 ---
 
-# Draft to Prompt (v2)
+# Draft to Prompt (v3)
 
 Turn a rough draft into a finished prompt through three phases: **Elicit → Route → Assemble & Critique**. Maintain a visible state block throughout so the user always knows what's decided and what's missing.
 
-The core belief of this skill: the biggest quality lever is not "which technique" but **which model and which prompt shape that model wants**. Techniques are internal vocabulary, not a menu to show the user.
+The core belief of this skill: the biggest quality lever is not "which technique" but **which model, which execution harness, and which prompt shape that combination wants**. Techniques are internal vocabulary, not a menu to show the user.
+
+Routing has two independent axes, decided in Phase 2:
+1. **Model** — the cheapest model that clears the task's bar (Fable is a last resort, not a default).
+2. **Harness** — whether the prompt needs to bootstrap a long-running structure (/loop, /goal, /orchestrator) or is a plain one-shot.
 
 ---
 
@@ -21,6 +25,7 @@ Extract from the user's draft (and conversation history) before asking anything:
 - **Pending**: decisions that materially change the prompt
 - **Inputs needed**: documents, data, research, examples — does the prompt need them attached, or should the target model fetch them?
 - **Success criteria**: how the user will judge "this worked"
+- **Lifespan**: one answer and done? A session that runs for hours? A mission coordinating other agents? This feeds the harness decision.
 
 Then render the state block and keep it updated every turn:
 
@@ -39,26 +44,61 @@ Rules for this phase:
 
 ## Phase 2 — Route
 
-Pick the target model, then the prompt shape. Decide silently and state the conclusion with a one-line justification — don't lecture about the matrix.
+Two decisions, made silently, each stated with a one-line justification — don't lecture about the matrix.
 
-**Choose Fable 5 when** the task is long-horizon, ambiguous, multi-phase, agentic (codebase audits, migrations, deep research, multi-document synthesis), or was previously "too hard". Also recommend effort: `high` default, `xhigh` for the most capability-sensitive work.
+### 2a. Model — climb the ladder from the bottom
 
-**Choose Opus/Sonnet when** the task is short, well-defined, latency-sensitive, high-volume/cost-sensitive, or touches domains that trip Fable's classifiers (offensive security, biology/chemistry) — those fall back to Opus anyway.
+Cost reality (per MTok, in/out — verify occasionally, these drift): **Haiku 4.5 $1/$5 · Sonnet 5 $3/$15 · Opus 4.8 $5/$25 · Fable 5 $10/$50**. Fable output costs 2× Opus and 10× Haiku — and that multiplies across subagents (see "Model mechanics" below). So: pick the **cheapest model that clears the bar**, and escalate only on evidence, not vibes.
 
-**Prompt shape by model:**
+- **Haiku (low/medium effort)** — mechanical, unambiguous, single-surface: rename, color change, config tweak, format conversion, summarize-these-20-commits. If a competent junior could do it without asking questions, it's Haiku.
+- **Sonnet (the default workhorse)** — well-defined features, repeatable transforms, most coding tasks, high-volume recurring jobs. When in doubt between Haiku and Sonnet, take Sonnet; when in doubt between Sonnet and anything above, take Sonnet and add better boundaries to the prompt.
+- **Opus (high effort)** — genuinely hard reasoning: gnarly debugging, architecture with real trade-offs, multi-file features where judgment quality dominates. Also the fallback for domains that trip Fable's classifiers (offensive security, biology/chemistry).
+- **Fable 5 — last resort, opt-in only.** Reach for it when (a) the task **already failed** on Opus or is visibly beyond it (week-long autonomous missions, massive ambiguous audits, frontier synthesis), AND (b) the user has accepted the cost — say the number ("this bills at $10/$50 per MTok, ~2× Opus"). If the user explicitly asks for Fable on a task lower rungs handle, deliver the prompt but push back with the cheaper routing in the same breath; let them overrule.
 
-| | Fable 5 | Opus / Sonnet |
+Effort: recommend it alongside the model (`low` for mechanical work, `high` default on Opus/Fable, `xhigh` only for the most capability-sensitive step). Higher effort doesn't change the per-token price, it spends more tokens — same cost lever, smaller.
+
+### 2b. Harness — match the structure to the lifespan
+
+Independent of model. A trivial task on a big model is waste; a mission without a harness is abandonment. Calibrate:
+
+- **None (default)** — one-shot answers and single-session tasks that end when the turn ends. Changing a button color needs a Haiku prompt, not an orchestrator.
+- **/loop** — ONE recurring check on external state: babysit a CI run, poll a deploy, re-run a status skill. The prompt should tell the session to invoke the loop skill self-paced (or with an interval matched to how fast the watched thing changes).
+- **/orchestrator + /goal + /loop (the mission stack)** — multi-executor coordination: dispatching workers to worktrees/sessions, tracking approvals and evidence, surviving interruptions. The boot prompt instructs the session to (1) invoke the orchestrator skill to enter the coordination-only contract, (2) invoke the goal skill with `set <objective>` so the mission state lives in a file, (3) drive ticks with the loop skill, self-paced. See `references/harness-routing.md` for the exact boot-prompt wording and a worked template.
+
+Before prescribing a harness, confirm those skills exist in the target environment (they're in the session's available-skills list). If absent, fall back to describing the equivalent behavior inline (a persistent state file + a self-scheduled check cadence) rather than naming skills that won't resolve.
+
+### Model mechanics — what a prompt can and cannot control
+
+Get these wrong and the prompt makes promises the platform won't keep. Verified against Anthropic docs (citations in `references/harness-routing.md`):
+
+- **Prompt text CANNOT change a running session's model.** Only `/model` (user gesture), the `--model` CLI flag, `ANTHROPIC_MODEL`, or settings.json do. So the model choice belongs in the **run instructions** ("boot this session with `--model haiku`" / "switch with /model before pasting"), never as an instruction inside the prompt body ("use Sonnet for this" is a no-op).
+- **Subagents inherit the parent session's model by default.** Resolution order: `CLAUDE_CODE_SUBAGENT_MODEL` env → per-call `model` parameter on the Agent tool → agent frontmatter `model` field (`haiku`/`sonnet`/`opus`/`fable`/full id/`inherit`, default `inherit`) → parent's model. Two consequences to design around:
+  - A big-model session fanning out inherits big-model billing on every subagent. When routing a Fable/Opus session that will spawn workers, **pin cheap subagent models in the prompt** ("spawn file-sweep subagents with model: haiku").
+  - The inverse composes beautifully: a cheap session CAN spawn one targeted expensive subagent for the hard core. Prefer "Sonnet session + one Opus subagent for the gnarly part" over "Opus session for everything".
+- **Slash commands are parsed only at the start of a USER message** — a prompt that embeds "then run /loop 10m" mid-text does nothing by itself. But skills are model-invocable through the Skill tool (unless the skill sets `disable-model-invocation`), so the correct phrasing in a boot prompt is "**invoke the loop skill** (self-paced) to keep ticking" — an instruction to use a tool, not magic slash text. Alternative when composing a Capy/CLI boot: make the pasted message literally START with the slash command.
+
+### Prompt shape by model
+
+| | Fable 5 | Opus / Sonnet / Haiku |
 |---|---|---|
 | Structure | Goal + Why + Boundaries + Verification + Output | Role + Context + Task + Constraints + Format |
-| Detail level | Direction, not steps. Short instructions, model fills gaps | More explicit steps and edge cases pay off |
-| Reasoning | Never ask to show/explain reasoning (triggers `reasoning_extraction` refusal). Adaptive thinking is always on | CoT ("think step by step") still helps on hard problems |
+| Detail level | Direction, not steps. Short instructions, model fills gaps | More explicit steps and edge cases pay off (the cheaper the model, the more explicit) |
+| Reasoning | Never ask to show/explain reasoning (triggers `reasoning_extraction` refusal). Adaptive thinking is always on | CoT ("think step by step") still helps on hard problems; skip it on Haiku-trivial work |
 | Examples | Few-shot for format/tone only | Few-shot broadly useful |
 | Verification | Explicit self-verification via fresh-context verifier subagent at intervals | Ask for a final self-check pass |
-| Scope control | Add "don't add features/refactor/abstract beyond the task" for coding | Usually unnecessary |
+| Scope control | Add "don't add features/refactor/abstract beyond the task" for coding | Usually unnecessary on well-bounded tasks; add it when the task is open-ended |
 
 ## Phase 3 — Assemble & Critique
 
 Write the prompt using the shape from Phase 2, then run the anti-pattern checklist **before** showing it. Fix violations silently; mention only the interesting ones.
+
+### Routing & mechanics checklist (all models)
+- [ ] Prompt body tells the session which model to "use" → **move to run instructions** (prompt text can't switch models).
+- [ ] Big-model session that will fan out, without pinned subagent models → pin cheap models per subagent call.
+- [ ] Long-lived mission without a harness → add the mission stack (orchestrator + goal + loop) or at minimum a persistent state file.
+- [ ] Harness bolted onto a task that ends in one sitting → remove it; ceremony is cost too.
+- [ ] Slash command embedded mid-prompt as if it self-executes → rephrase as "invoke the X skill", or restructure so the pasted message starts with the command.
+- [ ] Fable routed without evidence lower rungs fail, or without the cost stated → downgrade or surface the price.
 
 ### Fable 5 anti-pattern checklist
 - [ ] Asks the model to show/explain/output its reasoning or thought process → **remove** (refusal risk). Evidence citations (file + line, source + link) are fine — that's grounding, not chain of thought.
@@ -90,22 +130,28 @@ Deliver in this order:
 1. Updated **Prompt state** block (only if items are still pending; omit when everything is resolved)
 2. The final prompt in a single fenced code block, ready to paste
 3. A short "what I changed and why" — max 4-5 bullets in prose, tied to the routing decision
-4. Run instructions: target model, effort level (if Fable), and anything to fill in before running
+4. **Run instructions** — this is where model choice actually happens, since the prompt can't set it: target model + effort, HOW to apply it (`--model` at boot / `/model` before pasting / dispatch config), pinned subagent models if any, harness bootstrapping steps if any, and anything to fill in before running
 
 If critical items are still pending, deliver the best current draft anyway, with `[FILL: ...]` markers, and list the open questions after it. Never hold the draft hostage to questions.
 
 ## Examples
 
-**Example 1 — routing:**
-Input: "quero um prompt pro Claude auditar meu repo inteiro, achar código duplicado e coisas pela metade, e montar um backlog"
-Route: Fable 5, xhigh. Long-horizon + ambiguous + codebase-wide.
-Shape: Goal/Why/Boundaries ("analyze and propose only, don't modify code"; evidence = file+line for every finding) + verifier subagent + ordered backlog output.
+**Example 1 — trivial, cheap, no harness:**
+Input: "prompt pra trocar a cor do botão de submit pra verde no LoginForm.vue"
+Route: Haiku, low effort. Mechanical single-file change; no harness.
+Shape: Role + task + file path + "change only the color token, touch nothing else". Run instructions: boot with `--model haiku`.
 
-**Example 2 — routing:**
+**Example 2 — repeatable transform:**
 Input: "prompt pra transformar release notes em post de LinkedIn, vou rodar toda semana"
-Route: Sonnet. Short, repeatable, cost-sensitive.
+Route: Sonnet. Short, repeatable, cost-sensitive (recurring = cost multiplies).
 Shape: Role + task + 2 few-shot examples of past posts (ask user for them → goes to 📎 Inputs) + format constraints (length, tone, no hashtags spam).
 
-**Example 3 — anti-pattern fix:**
-Draft contains: "explique seu raciocínio passo a passo antes da resposta final"
-Target: Fable 5 → replace with "cite the evidence behind each conclusion (source + location)". Tell the user why in one line.
+**Example 3 — mission stack:**
+Input: "prompt de boot pra uma sessão coordenar a feature X num worktree: despachar executores, cobrar evidência, me chamar só nos gates, rodando sozinha até acabar"
+Route: Opus high (coordination judgment, but specs already exist — Fable only if the mission has genuinely frontier ambiguity). Harness: the mission stack.
+Shape: Goal/Why/Boundaries + "invoke the orchestrator skill (coordination-only contract), then the goal skill with `set <objective>`, then drive ticks with the loop skill, self-paced" + pinned cheap models for worker subagents + verification via evidence, not self-reports. Template in `references/harness-routing.md`.
+
+**Example 4 — anti-pattern fixes:**
+Draft contains: "use o modelo opus pra isso e explique seu raciocínio passo a passo"
+Fix 1: "use opus" moves to run instructions (prompt text can't switch models).
+Fix 2 (if routed to Fable): replace reasoning request with "cite the evidence behind each conclusion (source + location)". Tell the user why in one line.
