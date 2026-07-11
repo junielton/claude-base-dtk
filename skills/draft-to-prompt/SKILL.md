@@ -48,12 +48,12 @@ Two decisions, made silently, each stated with a one-line justification — don'
 
 ### 2a. Model — climb the ladder from the bottom
 
-Cost reality (per MTok, in/out — verify occasionally, these drift): **Haiku 4.5 $1/$5 · Sonnet 5 $3/$15 · Opus 4.8 $5/$25 · Fable 5 $10/$50**. Fable output costs 2× Opus and 10× Haiku — and that multiplies across subagents (see "Model mechanics" below). So: pick the **cheapest model that clears the bar**, and escalate only on evidence, not vibes.
+Cost reality (USD per MTok, in/out — verify occasionally, these drift): **Haiku 4.5 = 1/5 · Sonnet 5 = 3/15 · Opus 4.8 = 5/25 · Fable 5 = 10/50**. (Written without dollar-digit sequences on purpose: the skill loader substitutes `$N` patterns with invocation arguments.) Fable output costs 2× Opus and 10× Haiku — and that multiplies across subagents (see "Model mechanics" below). So: pick the **cheapest model that clears the bar**, and escalate only on evidence, not vibes.
 
 - **Haiku (low/medium effort)** — mechanical, unambiguous, single-surface: rename, color change, config tweak, format conversion, summarize-these-20-commits. If a competent junior could do it without asking questions, it's Haiku.
 - **Sonnet (the default workhorse)** — well-defined features, repeatable transforms, most coding tasks, high-volume recurring jobs. When in doubt between Haiku and Sonnet, take Sonnet; when in doubt between Sonnet and anything above, take Sonnet and add better boundaries to the prompt.
 - **Opus (high effort)** — genuinely hard reasoning: gnarly debugging, architecture with real trade-offs, multi-file features where judgment quality dominates. Also the fallback for domains that trip Fable's classifiers (offensive security, biology/chemistry).
-- **Fable 5 — last resort, opt-in only.** Reach for it when (a) the task **already failed** on Opus or is visibly beyond it (week-long autonomous missions, massive ambiguous audits, frontier synthesis), AND (b) the user has accepted the cost — say the number ("this bills at $10/$50 per MTok, ~2× Opus"). If the user explicitly asks for Fable on a task lower rungs handle, deliver the prompt but push back with the cheaper routing in the same breath; let them overrule.
+- **Fable 5 — last resort, opt-in only.** Reach for it when (a) the task **already failed** on Opus or is visibly beyond it (week-long autonomous missions, massive ambiguous audits, frontier synthesis), AND (b) the user has accepted the cost — say the number ("this bills at USD 10 in / 50 out per MTok, ~2× Opus"). If the user explicitly asks for Fable on a task lower rungs handle, deliver the prompt but push back with the cheaper routing in the same breath; let them overrule.
 
 Effort: recommend it alongside the model (`low` for mechanical work, `high` default on Opus/Fable, `xhigh` only for the most capability-sensitive step). Higher effort doesn't change the per-token price, it spends more tokens — same cost lever, smaller.
 
