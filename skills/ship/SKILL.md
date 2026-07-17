@@ -49,15 +49,14 @@ auto-detected. It works in any repo with `git` + `gh`.
 5. **Monitor CI + any assigned reviews in one loop** → poll until they resolve
    (don't block the user; check periodically via `/loop` or spaced checks):
    - **CI**: `gh pr checks <PR>` (or `gh pr view --json statusCheckRollup`).
-     A red check is the "tests are red" gate. If a CI-debugging skill is
-     available (e.g. `/dtk:debug-gh-action`), invoke it on the failing run in
-     autonomous mode: root-cause, fix, commit + push without stopping, then hand
-     back — CI re-runs on the push, so re-enter this loop. Cap it at **2 fix
-     attempts per check**: if the same check is still red after two pushed fixes,
-     or the debug skill reports the failure as pre-existing/flaky/needing a
-     product decision, stop at the red gate and notify. If no CI-debug skill is
-     available, stop at the red gate immediately and report the failing check —
-     don't guess at a fix. Never proceed to triage/reply while CI is red.
+     A red check is the "tests are red" gate: invoke `/dtk:debug-gh-action` on
+     the failing run. It runs in pipeline mode here (its autonomous-caller
+     exception): root-cause, fix, commit + push without stopping to ask, then
+     hand back — CI re-runs on the push, so re-enter this loop. Cap it at
+     **2 fix attempts per check**: if the same check is still red after two
+     pushed fixes, or `/dtk:debug-gh-action` reports the failure as
+     pre-existing/flaky/needing a product decision, stop at the red gate and
+     notify. Never proceed to triage/reply while CI is red.
    - **Mergeability**: `gh pr view --json mergeable` — a conflict with the base
      is a red gate too.
    - **Reviewers**: `gh pr view --json reviews` until the assigned reviews land.
@@ -87,28 +86,10 @@ auto-detected. It works in any repo with `git` + `gh`.
 
 ## Final report
 
-End the run with a checklist final report — one line per pipeline step, in
-execution order, then a short summary:
-
-```
-✅ review-local: 2 safe fixes applied
-✅ commit + push: 3 commits on ABC-231-fix-avatar-cache
-✅ PR #142 opened → https://github.com/org/repo/pull/142
-⏭️ Copilot: not enabled on this repo
-✅ CODEOWNERS: @org/frontend auto-requested
-✅ CI green (12 checks)
-❌ review: 1 blocking comment needs a product decision (retry config)
-
-Shipped the avatar-cache fix as PR #142; CI is green.
-One blocking review comment about the retry config needs your call.
-```
-
-Line rules: **✅** ran and succeeded, **⏭️** skipped (say why), **❌** failed or
-hit a red gate (one concrete reason), **⚠️** done with a caveat. Each line
-carries a concrete outcome — counts, branch names, PR numbers, URLs — not just
-the step name. A run that stopped early still lists the remaining steps as ⏭️ so
-the reader sees what did *not* happen. Summary is at most 3 lines; if a ❌
-stopped the run, the summary says exactly what decision or fix unblocks it.
+End the run with a `/dtk:report-back` final report: one ✅/⏭️/❌ line per
+pipeline step above (⏭️ for steps the resume logic skipped, ❌ + one reason for
+a red gate), then a summary of at most 3 lines. Follow that skill's format
+rather than improvising one here.
 
 ## Resuming mid-pipeline
 
@@ -144,10 +125,9 @@ work isn't repeated:
 
 ## Dependencies
 
-Chains `/dtk:review-local`, `/dtk:smart-commit`, `/dtk:create-pr`, and
-`/dtk:review`. Uses a CI-debugging skill (e.g. `/dtk:debug-gh-action`) at the CI
-red gate **if one is installed** — degrades to stopping at the gate when it
-isn't. PR creation and edits go through `create-pr` / `gh pr edit`. Reviewer
+Chains `/dtk:review-local`, `/dtk:smart-commit`, `/dtk:create-pr`, `/dtk:review`,
+`/dtk:debug-gh-action` (at the CI red gate), and `/dtk:report-back` (final
+report). PR creation and edits go through `create-pr` / `gh pr edit`. Reviewer
 replies use a plain author-reply register (no external voice skill required).
 Requires `git` and an authenticated `gh` CLI. The end-of-run notifier is
 auto-detected (`speak-notify` / `say` / `spd-say` / `notify-send` / print), so no
