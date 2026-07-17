@@ -45,6 +45,7 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 |-------|---------|-------------|
 | **smart-commit** | `/dtk:smart-commit` | Analyzes uncommitted changes, groups related files, and creates organized commits using Conventional Commits |
 | **create-pr** | `/dtk:create-pr` | Opens a GitHub PR with standardized title (`Title (ID)` from the branch name) and description — PR template, base branch, and task-tracker link discovered from the repo at runtime |
+| **ship** | `/dtk:ship` | Runs the full PR lifecycle autonomously — review-local → smart-commit → create-pr → assign reviewers (CODEOWNERS + Copilot if enabled) → monitor CI + reviews → triage → reply → notify |
 | **learn-from-review** | `/dtk:learn-from-review` | Extracts actionable lessons from code review sessions and persists them as individual files in `docs/lessons/` |
 
 ### Code review (with persistent memory)
