@@ -12,9 +12,11 @@ interpreting their output — never authoring panel code by hand.
 
 ## Requirements (preflight enforces these)
 
-- Laravel project (`artisan` + `laravel/framework` in composer.json)
-- Tailwind v4 with an `@theme` block in `resources/css/app.css`
-- Blade views (the panel ships its own standalone shell; no layout needed)
+- `artisan` present and `composer.json` requiring `laravel/framework`
+- `resources/css/app.css` present with an `@theme` block (Tailwind v4 tokens — the foundations pages render from them)
+- `routes/web.php` present (the installer appends the marker-guarded route registration there)
+
+The panel ships its own standalone Blade shell, so no project layout is required.
 
 ## Workflow
 
@@ -36,8 +38,10 @@ Read the JSON report:
 - `status: up-to-date` — nothing to do; report and stop.
 - exit 2 with `drifted: [...]` — files exist locally with different content.
   NEVER pass `--force` on your own: show the drifted list to the user and let
-  them decide (their edits may be deliberate).
+  them decide (their edits may be deliberate). (on their approval, re-run with `--force` appended)
 - exit 1 — preflight failure; report the reason verbatim and stop.
+
+Check the exit code before reading `status`: `status` only ever reads `installed` or `up-to-date`, and drift (exit 2) can co-occur with `status: installed` on a partial install.
 
 ### Phase 3 — Prove it works
 
