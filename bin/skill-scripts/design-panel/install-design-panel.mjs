@@ -39,10 +39,27 @@ if (existsSync(join(root, 'composer.json'))) {
 if (!composer?.require?.['laravel/framework']) preflightFail('composer.json does not require laravel/framework');
 const appCssPath = join(root, 'resources', 'css', 'app.css');
 if (!existsSync(appCssPath)) preflightFail('resources/css/app.css not found');
-if (!/@theme/.test(readFileSync(appCssPath, 'utf8'))) {
+const appCssContent = readFileSync(appCssPath, 'utf8');
+if (!/@theme/.test(appCssContent)) {
   preflightFail('resources/css/app.css has no @theme block — the panel needs Tailwind v4 design tokens');
 }
 if (!existsSync(join(root, 'routes', 'web.php'))) preflightFail('routes/web.php not found');
+
+// --- Chrome-token warnings ---------------------------------------------------
+// The @theme check above only proves app.css has SOME tokens; the panel chrome
+// (nav, cards, borders) reads these specific ones. Missing ones don't fail
+// preflight — they render unstyled with no error, so we warn instead.
+const CHROME_TOKENS = [
+  '--color-background',
+  '--color-foreground',
+  '--color-border',
+  '--color-secondary',
+  '--color-muted-foreground',
+  '--color-primary',
+];
+const warnings = CHROME_TOKENS.filter((token) => !appCssContent.includes(token)).map(
+  (token) => `app.css does not declare ${token} — the panel chrome reads it and will render unstyled without it.`,
+);
 
 // --- Copy templates --------------------------------------------------------
 function* walk(dir) {
@@ -53,7 +70,7 @@ function* walk(dir) {
   }
 }
 
-const report = { status: 'installed', created: [], unchanged: [], drifted: [], overwritten: [], edits: [] };
+const report = { status: 'installed', created: [], unchanged: [], drifted: [], overwritten: [], edits: [], warnings };
 
 for (const src of walk(templateRoot)) {
   const rel = relative(templateRoot, src);

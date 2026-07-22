@@ -68,7 +68,13 @@ if (args['touch-sync']) {
   }
   const path = manifestPath(args.root, args.slug);
   if (!existsSync(path)) fail(`no manifest at ${path}`);
-  const manifest = JSON.parse(readFileSync(path, 'utf8'));
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    fail(`manifest at ${path} is not valid JSON`);
+  }
+  if (typeof manifest.sync !== 'object' || manifest.sync === null) manifest.sync = {};
   manifest.sync.lastResult = args['touch-sync'];
   manifest.sync.lastCheckedAt = new Date().toISOString();
   save(args.root, args.slug, manifest);
