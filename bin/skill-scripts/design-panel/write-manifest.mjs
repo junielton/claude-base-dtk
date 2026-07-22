@@ -26,7 +26,7 @@ function fail(msg) {
 
 /** `type XProps = { kbd?: boolean; label?: string; ... }` → [{name, type}] */
 function parseProps(context) {
-  const m = context.match(/type \w+Props = \{([\s\S]*?)\};/);
+  const m = context.match(/type \w+Props = \{([\s\S]*?)\}\s*;?/);
   if (!m) return [];
   return m[1]
     .split(';')

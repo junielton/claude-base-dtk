@@ -91,3 +91,28 @@ test('re-running create updates in place and resets sync', () => {
   const m = JSON.parse(readFileSync(join(root, 'design/manifests/button.json'), 'utf8'));
   assert.equal(m.sync.lastResult, 'in-sync');
 });
+
+test('parses props types without trailing semicolon before closing brace', () => {
+  const root = freshRoot();
+  const contextPath = join(root, 'chip-context.txt');
+  writeFileSync(contextPath, `Component set: Chip
+data-name="Chip"
+
+type ChipProps = { label?: string; active?: boolean }
+
+<div className="chip">Chip</div>`);
+
+  const tokensPath = join(root, 'chip-tokens.json');
+  writeFileSync(tokensPath, JSON.stringify({ colors: [] }));
+
+  run([
+    '--root', root, '--slug', 'chip', '--area', 'components',
+    '--component', 'ui.chip', '--file-key', 'filekey',
+    '--desktop-node', '1:1', '--desktop-url', 'https://figma.com/x',
+    '--context', contextPath,
+    '--tokens', tokensPath,
+  ]);
+
+  const m = JSON.parse(readFileSync(join(root, 'design/manifests/chip.json'), 'utf8'));
+  assert.deepEqual(m.api.props.map((p) => p.name).sort(), ['active', 'label'].sort());
+});
