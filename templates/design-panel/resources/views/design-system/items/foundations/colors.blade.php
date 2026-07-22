@@ -32,7 +32,7 @@
     <header class="space-y-1">
         <h2 class="text-3xl font-medium tracking-tight">Colors</h2>
         <p class="text-base text-muted-foreground">
-            Semantic tokens pulled from the Figma kit. Every value is a CSS variable declared in
+            Semantic tokens declared as CSS variables in
             <code>resources/css/app.css</code> and consumed as a Tailwind utility
             (<code>bg-primary</code>, <code>text-muted-foreground</code>, <code>border-border</code>).
         </p>
@@ -40,21 +40,10 @@
 
     <div class="space-y-4">
         <div class="rounded-lg border border-border bg-secondary px-5 py-4 text-sm">
-            <p class="font-medium text-foreground">Heads up — the palette mixes two Tailwind scales.</p>
+            <p class="font-medium text-foreground">This list reflects only the tokens declared in <code>app.css</code> — no more.</p>
             <p class="text-muted-foreground">
-                <code>foreground</code>, <code>muted-foreground</code> and <code>border</code> come from
-                <strong>zinc</strong>; <code>primary</code> and <code>secondary</code> from
-                <strong>neutral</strong>. <code>input</code> (#E6E6E6) belongs to neither. Faithful to the
-                Figma kit as it stands — flagged with design.
-            </p>
-        </div>
-
-        <div class="rounded-lg border border-border bg-secondary px-5 py-4 text-sm">
-            <p class="font-medium text-foreground">This list is exactly what Figma declares — no more.</p>
-            <p class="text-muted-foreground">
-                The kit has no <code>--muted</code>, <code>--popover</code>, <code>--card-foreground</code>
-                or <code>--ring</code>, so neither do we, even though stock shadcn ships them. A component
-                that needs one gets it added to Figma first.
+                Additional semantic tokens can be added to <code>app.css</code> as new components need
+                them; this page will pick up whatever is declared there.
             </p>
         </div>
     </div>
