@@ -1,29 +1,29 @@
 @php
     $groups = [
         'Surfaces' => [
-            ['name' => 'Background', 'token' => 'background', 'hex' => '#FFFFFF', 'figma' => 'var(--background)'],
-            ['name' => 'Card', 'token' => 'card', 'hex' => '#FFFFFF', 'figma' => 'var(--card)'],
-            ['name' => 'Secondary', 'token' => 'secondary', 'hex' => '#F5F5F5', 'figma' => 'var(--secondary)'],
+            ['name' => 'Background', 'token' => 'background', 'hex' => '#FFFFFF'],
+            ['name' => 'Card', 'token' => 'card', 'hex' => '#FFFFFF'],
+            ['name' => 'Secondary', 'token' => 'secondary', 'hex' => '#F5F5F5'],
         ],
         'Content' => [
-            ['name' => 'Foreground', 'token' => 'foreground', 'hex' => '#09090B', 'figma' => 'var(--foreground)'],
-            ['name' => 'Muted Foreground', 'token' => 'muted-foreground', 'hex' => '#71717A', 'figma' => 'var(--muted-foreground)'],
-            ['name' => 'Secondary Foreground', 'token' => 'secondary-foreground', 'hex' => '#171717', 'figma' => 'var(--secondary-foreground)'],
-            ['name' => 'Popover Foreground', 'token' => 'popover-foreground', 'hex' => '#09090B', 'figma' => 'popover-foreground'],
+            ['name' => 'Foreground', 'token' => 'foreground', 'hex' => '#09090B'],
+            ['name' => 'Muted Foreground', 'token' => 'muted-foreground', 'hex' => '#71717A'],
+            ['name' => 'Secondary Foreground', 'token' => 'secondary-foreground', 'hex' => '#171717'],
+            ['name' => 'Popover Foreground', 'token' => 'popover-foreground', 'hex' => '#09090B'],
         ],
         'Action' => [
-            ['name' => 'Primary', 'token' => 'primary', 'hex' => '#171717', 'figma' => 'var(--primary)'],
-            ['name' => 'Primary Foreground', 'token' => 'primary-foreground', 'hex' => '#FAFAFA', 'figma' => 'var(--primary-foreground)'],
+            ['name' => 'Primary', 'token' => 'primary', 'hex' => '#171717'],
+            ['name' => 'Primary Foreground', 'token' => 'primary-foreground', 'hex' => '#FAFAFA'],
         ],
         'Lines & inputs' => [
-            ['name' => 'Border', 'token' => 'border', 'hex' => '#E4E4E7', 'figma' => 'var(--border)'],
-            ['name' => 'Input', 'token' => 'input', 'hex' => '#E6E6E6', 'figma' => 'var(--input)'],
-            ['name' => 'Sidebar Border', 'token' => 'sidebar-border', 'hex' => '#E6E6E6', 'figma' => 'sidebar/border'],
-            ['name' => 'Input Background', 'token' => 'bg-input-30', 'hex' => '#FFFFFF', 'figma' => 'custom/bg-input-30'],
+            ['name' => 'Border', 'token' => 'border', 'hex' => '#E4E4E7'],
+            ['name' => 'Input', 'token' => 'input', 'hex' => '#E6E6E6'],
+            ['name' => 'Sidebar Border', 'token' => 'sidebar-border', 'hex' => '#E6E6E6'],
+            ['name' => 'Input Background', 'token' => 'bg-input-30', 'hex' => '#FFFFFF'],
         ],
         'Named' => [
-            ['name' => 'White 2', 'token' => 'white-2', 'hex' => '#FFFFFF', 'figma' => 'colors/white 2'],
-            ['name' => 'Black 2', 'token' => 'black-2', 'hex' => '#000000', 'figma' => 'colors/black 2'],
+            ['name' => 'White 2', 'token' => 'white-2', 'hex' => '#FFFFFF'],
+            ['name' => 'Black 2', 'token' => 'black-2', 'hex' => '#000000'],
         ],
     ];
 @endphp
@@ -59,7 +59,6 @@
                             <p class="text-sm font-medium">{{ $swatch['name'] }}</p>
                             <p class="text-sm text-muted-foreground">{{ $swatch['hex'] }}</p>
                             <p class="text-sm text-muted-foreground">--color-{{ $swatch['token'] }}</p>
-                            <p class="text-xs text-muted-foreground">Figma: <code>{{ $swatch['figma'] }}</code></p>
                         </div>
                     </div>
                 @endforeach
