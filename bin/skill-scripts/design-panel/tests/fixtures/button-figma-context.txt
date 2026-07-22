@@ -1,0 +1,7 @@
+Component set: Button
+data-name="Button"
+
+type ButtonProps = { kbd?: boolean; label?: string; leftIcon?: boolean;
+                     rightIcon?: boolean; size?: "Default"; state?: "Enabled"; type?: "Default" };
+
+<button className="bg-[var(--primary,#171717)] text-[var(--primary-foreground,#FFFFFF)] rounded-lg text-sm font-medium px-4 h-9">Get started</button>
