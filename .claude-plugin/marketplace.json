@@ -12,7 +12,7 @@
     {
       "name": "dtk",
       "source": "./",
-      "description": "Developer toolkit with smart commits, reviews with persistent memory, ADRs, PRDs, design QA, and an informative statusline",
+      "description": "Developer toolkit with smart commits, reviews with persistent memory, ADRs, PRDs, and design QA",
       "version": "1.4.0"
     }
   ]

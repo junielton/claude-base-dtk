@@ -74,17 +74,9 @@ All review skills save results to `memories/reviews/` and maintain a `review-sta
 | **dsqa** | `/dtk:dsqa` | Compares a Figma design against a running browser implementation — reports every deviation with exact values and fixes |
 | **implement-design** | `/dtk:implement-design` | Full workflow from Figma design to implemented component — handles context gathering, planning, execution, and DSQA verification |
 
-### Project setup & tooling
-
-| Skill | Command | Description |
-|-------|---------|-------------|
-| **bootstrap** | `/dtk:bootstrap` | Sets up project structure — `docs/` knowledge base, `bin/skill-scripts/`, `.claude/` config, and `CLAUDE.md` stub. Idempotent and safe to run multiple times |
-| **statusline** | `/dtk:statusline` | Enables a rich terminal statusline with context usage progress bar, git info, cost, and duration |
-| **update** | `/dtk:update` | Self-updates the plugin from the remote repository |
-
 ## Scripts
 
-Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by domain. Bootstrap copies these to the target project so they're version-controlled alongside the code.
+Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by domain. Scripts run from the installed plugin — no project setup required.
 
 | Directory | Scripts | Used by |
 |-----------|---------|---------|
@@ -95,37 +87,17 @@ Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by 
 | `commit/` | `gather-changes.sh` | smart-commit |
 | `shared/` | `figma-url-parser.sh` | dsqa, implement-design |
 
-## Project structure created by bootstrap
+## Project structure used by the skills
 
-After running `/dtk:bootstrap`, your project gets:
+The documentation skills write into a `docs/` knowledge base in your project, creating directories and index files on first use — no setup step needed:
 
 ```
 your-project/
-├── CLAUDE.md                       ← conventions + knowledge base references
 ├── docs/
-│   ├── adrs/                       ← architecture decision records
-│   │   └── index.md
-│   ├── lessons/                    ← lessons learned from reviews
-│   │   ├── index.md
-│   │   ├── security/
-│   │   ├── code-patterns/
-│   │   ├── qa/
-│   │   ├── performance/
-│   │   ├── framework/
-│   │   ├── testing/
-│   │   └── frontend/
+│   ├── adrs/                       ← architecture decision records (+ index.md)
+│   ├── lessons/                    ← lessons learned from reviews (+ index.md)
 │   ├── plans/                      ← implementation plans
 │   └── prds/                       ← product requirements
-├── bin/skill-scripts/              ← reusable scripts (version-controlled)
-│   ├── review/
-│   ├── lessons/
-│   ├── dsqa/
-│   ├── adr/
-│   ├── commit/
-│   └── shared/
-├── .claude/                        ← tool config
-│   ├── skills/
-│   └── plans/
 └── memories/                       ← review state (gitignored)
     └── reviews/
 ```
@@ -139,10 +111,6 @@ Next review → lessons-loader.sh → loads as mandatory checkpoints
                                                     ↓
                               Issues reference specific lesson file paths
 ```
-
-## Statusline
-
-The plugin includes a rich terminal statusline showing model info, context window progress bar, git status, cost, duration, and lines changed. Enable it with `/dtk:statusline`.
 
 ## Updating
 
