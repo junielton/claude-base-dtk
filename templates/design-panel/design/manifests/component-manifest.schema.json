@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dtk component manifest",
+  "type": "object",
+  "required": ["component", "registry", "figma", "api", "tokens", "sync"],
+  "properties": {
+    "component": { "type": "string" },
+    "registry": {
+      "type": "object",
+      "required": ["area", "item"],
+      "properties": { "area": { "type": "string" }, "item": { "type": "string" } }
+    },
+    "figma": {
+      "type": "object",
+      "required": ["fileKey", "desktop"],
+      "properties": {
+        "fileKey": { "type": "string" },
+        "desktop": { "$ref": "#/$defs/node" },
+        "mobile": { "oneOf": [{ "$ref": "#/$defs/node" }, { "type": "null" }] }
+      }
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "props": { "type": "array", "items": { "type": "object", "required": ["name", "type"] } },
+        "variants": { "type": ["object", "null"] },
+        "slots": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "tokens": { "type": "object" },
+    "variableDefsHash": { "type": ["string", "null"] },
+    "sync": {
+      "type": "object",
+      "required": ["lastResult"],
+      "properties": {
+        "lastResult": { "enum": ["in-sync", "drifted", "never-checked", "unreachable"] },
+        "lastCheckedAt": { "type": "string" },
+        "implementedAt": { "type": "string" }
+      }
+    },
+    "plan": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["nodeId"],
+      "properties": {
+        "nodeId": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "layerName": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
