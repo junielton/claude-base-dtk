@@ -92,7 +92,14 @@ Path: `docs/adrs/ADR-{NNN}-{short-slug}.md`
 
 ## Step 6: Check Conflicts
 
-1. Read `docs/adrs/index.md`
+1. Read `docs/adrs/index.md`. If it doesn't exist yet (first ADR in the project), create it with this header and skip to Step 7:
+
+```markdown
+# Architecture Decision Records
+
+| # | Title | Weight | Status | Date |
+|---|-------|--------|--------|------|
+```
 2. **Conflicts**: Update old ADR status to `Superseded by ADR-{NNN}`, add `**Supersedes:** [ADR-{old}](ADR-{old}-{slug}.md)` to new ADR
 3. **Relations**: Add `**Related:** [ADR-{NNN}](ADR-{NNN}-{slug}.md)`
 4. **Lessons**: If a lesson from `docs/lessons/` influenced this, add `**Informed by:** [{title}](../lessons/{category}/{file}.md)`

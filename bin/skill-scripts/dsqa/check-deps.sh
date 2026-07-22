@@ -9,17 +9,19 @@ set -euo pipefail
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 
-# Check scripts exist
+# DSQA scripts live alongside this script (in the plugin install or a local checkout)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 SCRIPTS_OK=true
-for script in bin/skill-scripts/dsqa/capture-and-compare.mjs bin/skill-scripts/dsqa/deep-inspect.mjs bin/skill-scripts/dsqa/utils/color-utils.mjs; do
-  if [ ! -f "${PROJECT_ROOT}/$script" ]; then
-    echo "Missing script: $script"
+for script in capture-and-compare.mjs deep-inspect.mjs utils/color-utils.mjs; do
+  if [ ! -f "${SCRIPT_DIR}/$script" ]; then
+    echo "Missing script: ${SCRIPT_DIR}/$script"
     SCRIPTS_OK=false
   fi
 done
 
 if [ "$SCRIPTS_OK" = false ]; then
-  echo "Run /dtk:bootstrap to copy DSQA scripts to your project."
+  echo "DSQA scripts not found next to check-deps.sh — the plugin install looks corrupted; try reinstalling the dtk plugin."
   exit 1
 fi
 
