@@ -60,6 +60,22 @@ test('fresh install copies templates, registers routes, seeds env', () => {
   assert.match(readFileSync(join(root, '.env.example'), 'utf8'), /DESIGN_SYSTEM_ENABLED=true/);
 });
 
+test('installed PanelTest disables Vite so it passes before assets are built', () => {
+  // Regression: the panel shell renders @vite(...), so a fresh app that hasn't
+  // run `npm run build` yet throws ViteManifestNotFoundException unless the
+  // installed test opts out with withoutVite(). Caught by the real E2E run
+  // (Task 5), not by this script's own fixtures, since it needs actual PHPUnit
+  // against a real Laravel app to surface.
+  const root = skeleton();
+  run(['--root', root]);
+  const panelTest = readFileSync(join(root, 'tests/Feature/DesignSystem/PanelTest.php'), 'utf8');
+  const getCalls = panelTest.match(/\$this->[^;]*->get\(/g) ?? [];
+  assert.ok(getCalls.length > 0, 'expected at least one ->get( call in the installed PanelTest');
+  for (const call of getCalls) {
+    assert.match(call, /withoutVite\(\)/, `expected withoutVite() before: ${call}`);
+  }
+});
+
 test('second run is a byte-for-byte no-op', () => {
   const root = skeleton();
   run(['--root', root]);
