@@ -1,0 +1,6 @@
+{
+  "colors": ["primary", "primary-foreground"],
+  "typography": ["text-sm", "font-medium"],
+  "spacing": ["px-4", "h-9"],
+  "radii": ["rounded-lg"]
+}
