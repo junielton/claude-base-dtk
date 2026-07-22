@@ -24,6 +24,30 @@ function skeleton() {
   writeFileSync(join(root, 'artisan'), '#!/usr/bin/env php\n');
   writeFileSync(join(root, 'composer.json'), JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
   mkdirSync(join(root, 'resources', 'css'), { recursive: true });
+  writeFileSync(
+    join(root, 'resources', 'css', 'app.css'),
+    "@import 'tailwindcss';\n@theme static {\n"
+      + '  --color-primary: #171717;\n'
+      + '  --color-background: #ffffff;\n'
+      + '  --color-foreground: #0a0a0a;\n'
+      + '  --color-border: #e5e5e5;\n'
+      + '  --color-secondary: #f5f5f5;\n'
+      + '  --color-muted-foreground: #737373;\n'
+      + '}\n',
+  );
+  mkdirSync(join(root, 'routes'), { recursive: true });
+  writeFileSync(join(root, 'routes', 'web.php'), "<?php\n\nRoute::view('/', 'home');\n");
+  writeFileSync(join(root, '.env.example'), 'APP_NAME=Laravel\n');
+  return root;
+}
+
+/** Same as skeleton(), but app.css declares only --color-primary — used to
+ *  exercise the chrome-token warning path. */
+function minimalSkeleton() {
+  const root = mkdtempSync(join(tmpdir(), 'laravel-minimal-'));
+  writeFileSync(join(root, 'artisan'), '#!/usr/bin/env php\n');
+  writeFileSync(join(root, 'composer.json'), JSON.stringify({ require: { 'laravel/framework': '^13.0' } }));
+  mkdirSync(join(root, 'resources', 'css'), { recursive: true });
   writeFileSync(join(root, 'resources', 'css', 'app.css'), "@import 'tailwindcss';\n@theme static {\n  --color-primary: #171717;\n}\n");
   mkdirSync(join(root, 'routes'), { recursive: true });
   writeFileSync(join(root, 'routes', 'web.php'), "<?php\n\nRoute::view('/', 'home');\n");
@@ -105,4 +129,29 @@ test('--force overwrites drifted files', () => {
   const report = JSON.parse(run(['--root', root, '--force']).out);
   assert.deepEqual(report.overwritten, ['config/design-system.php']);
   assert.match(readFileSync(join(root, 'config/design-system.php'), 'utf8'), /design-system\.manifests|'manifests'/);
+});
+
+test('preflight warns, but does not abort, when app.css is missing chrome tokens', () => {
+  const root = minimalSkeleton();
+  const report = JSON.parse(run(['--root', root]).out);
+  assert.equal(report.status, 'installed');
+  assert.equal(report.warnings.length, 5);
+  for (const token of [
+    '--color-background',
+    '--color-foreground',
+    '--color-border',
+    '--color-secondary',
+    '--color-muted-foreground',
+  ]) {
+    assert.ok(
+      report.warnings.some((w) => w.includes(token)),
+      `expected a warning naming ${token}`,
+    );
+  }
+});
+
+test('preflight reports no warnings when app.css declares all chrome tokens', () => {
+  const root = skeleton();
+  const report = JSON.parse(run(['--root', root]).out);
+  assert.deepEqual(report.warnings, []);
 });

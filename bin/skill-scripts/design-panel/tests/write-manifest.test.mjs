@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, '..', 'write-manifest.mjs');
 const fixtures = join(here, 'fixtures');
+const schemaPath = join(here, '..', '..', '..', '..', 'templates', 'design-panel', 'design', 'manifests', 'component-manifest.schema.json');
 
 function run(args, opts = {}) {
   return execFileSync('node', [script, ...args], { encoding: 'utf8', ...opts });
@@ -83,6 +84,27 @@ test('touch-sync on a missing manifest fails cleanly', () => {
   );
 });
 
+test('touch-sync on a corrupted manifest fails cleanly instead of throwing a raw parse trace', () => {
+  const root = freshRoot();
+  writeFileSync(join(root, 'design/manifests/x.json'), '{oops');
+  assert.throws(
+    () => run(['--root', root, '--slug', 'x', '--touch-sync', 'in-sync']),
+    (e) => e.status === 1 && /error: .*not valid JSON/.test(e.stderr),
+  );
+});
+
+test('touch-sync on a manifest missing the sync key still succeeds', () => {
+  const root = freshRoot();
+  writeFileSync(
+    join(root, 'design/manifests/nosync.json'),
+    JSON.stringify({ component: 'ui.nosync', registry: { area: 'components', item: 'nosync' } }),
+  );
+  run(['--root', root, '--slug', 'nosync', '--touch-sync', 'in-sync']);
+  const m = JSON.parse(readFileSync(join(root, 'design/manifests/nosync.json'), 'utf8'));
+  assert.equal(m.sync.lastResult, 'in-sync');
+  assert.ok(m.sync.lastCheckedAt);
+});
+
 test('re-running create updates in place and resets sync', () => {
   const root = freshRoot();
   run(createArgs(root));
@@ -90,6 +112,23 @@ test('re-running create updates in place and resets sync', () => {
   run(createArgs(root));
   const m = JSON.parse(readFileSync(join(root, 'design/manifests/button.json'), 'utf8'));
   assert.equal(m.sync.lastResult, 'in-sync');
+});
+
+test('a fresh manifest satisfies the component-manifest schema contract', () => {
+  const root = freshRoot();
+  run(createArgs(root));
+  const m = JSON.parse(readFileSync(join(root, 'design/manifests/button.json'), 'utf8'));
+  const schema = JSON.parse(readFileSync(schemaPath, 'utf8'));
+
+  for (const key of schema.required) {
+    assert.ok(Object.hasOwn(m, key), `manifest is missing required key "${key}"`);
+  }
+  assert.ok(
+    schema.properties.sync.properties.lastResult.enum.includes(m.sync.lastResult),
+    `sync.lastResult "${m.sync.lastResult}" is not one of the schema's enum values`,
+  );
+  assert.ok(Object.hasOwn(m.registry, 'area'));
+  assert.ok(Object.hasOwn(m.registry, 'item'));
 });
 
 test('parses props types without trailing semicolon before closing brace', () => {
