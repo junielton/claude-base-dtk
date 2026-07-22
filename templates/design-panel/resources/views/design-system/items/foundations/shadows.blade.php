@@ -1,7 +1,7 @@
 @php
     $shadows = [
-        ['class' => 'shadow-2xs', 'value' => '0 1px 2px 0', 'usage' => 'Buttons, inputs — the kit\'s default elevation'],
-        ['class' => 'shadow-xs', 'value' => '0 1px 2px 0', 'usage' => 'Same geometry as 2xs in this kit'],
+        ['class' => 'shadow-2xs', 'value' => '0 1px 2px 0', 'usage' => 'Buttons, inputs — the default elevation'],
+        ['class' => 'shadow-xs', 'value' => '0 1px 2px 0', 'usage' => 'Same geometry as 2xs in this scale'],
         ['class' => 'shadow-md', 'value' => '0 4px 6px -1px, 0 2px 4px -2px', 'usage' => 'Dropdowns, popovers'],
         ['class' => 'shadow-lg', 'value' => '0 10px 15px -3px, 0 4px 6px -4px', 'usage' => 'Modals, overlays'],
     ];
@@ -30,7 +30,7 @@
     </div>
 
     <p class="text-sm text-muted-foreground">
-        <code>2xs</code> and <code>xs</code> are identical in the Figma kit. Both are kept so component
-        code can mirror the layer name it was built from.
+        <code>2xs</code> and <code>xs</code> render identically in this scale. Both are kept as distinct
+        utilities in case the underlying values diverge later.
     </p>
 </section>

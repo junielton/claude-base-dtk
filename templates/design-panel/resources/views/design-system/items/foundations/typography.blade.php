@@ -26,7 +26,7 @@
     <header class="space-y-1">
         <h2 class="text-3xl font-medium tracking-tight">Typography</h2>
         <p class="text-base text-muted-foreground">
-            Geist, three weights. The scale matches Tailwind's defaults exactly — nothing is redeclared
+            The scale matches Tailwind's defaults exactly — nothing is redeclared
             in <code>@theme</code> beyond the font family.
         </p>
     </header>
@@ -75,13 +75,7 @@
             @endforeach
         </div>
         <p class="text-sm text-muted-foreground">
-            The kit has no bold (700). Headings are <code>font-medium</code>.
-        </p>
-        <p class="text-sm text-muted-foreground">
-            Two deviations from Tailwind's defaults, both minor and left un-tokenised:
-            <code>text-3xl</code> appears at both <code>36</code> and <code>1</code> line-height
-            (reach for <code>leading-none</code> on the display use), and <code>text-xs</code> at
-            regular weight carries <code>+1%</code> tracking.
+            The spec column above lists the exact size and line-height available for each weight.
         </p>
     </div>
 </section>
