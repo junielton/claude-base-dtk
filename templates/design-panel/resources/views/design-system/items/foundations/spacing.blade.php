@@ -1,5 +1,5 @@
 @php
-    // The kit uses the stock 4px scale; these are the steps it actually reaches for.
+    // Tailwind's stock 4px scale; these are the steps used across this project.
     $steps = [
         ['step' => '0.5', 'px' => 2],
         ['step' => '1', 'px' => 4],
@@ -17,7 +17,7 @@
     ];
 
     $grid = [
-        ['token' => 'section', 'px' => 80, 'usage' => 'Vertical padding on every marketing section'],
+        ['token' => 'section', 'px' => 80, 'usage' => 'Vertical padding on every page section'],
         ['token' => 'container-gap', 'px' => 64, 'usage' => 'Gap between blocks inside a container'],
         ['token' => 'gutter', 'px' => 36, 'usage' => 'Column gap — not a stock Tailwind step'],
         ['token' => 'container-x', 'px' => 32, 'usage' => 'Horizontal container padding'],
@@ -28,8 +28,8 @@
     <header class="space-y-1">
         <h2 class="text-3xl font-medium tracking-tight">Spacing</h2>
         <p class="text-base text-muted-foreground">
-            A stock 4px scale — Tailwind's default, unmodified. On top of it sit four named tokens for
-            the marketing grid measured off the 1440px artboard.
+            A stock 4px scale — Tailwind's default, unmodified. On top of it sit a few named tokens for
+            common layout measurements.
         </p>
     </header>
 
@@ -47,7 +47,7 @@
     </div>
 
     <div class="space-y-4">
-        <h3 class="text-base font-medium">Marketing grid</h3>
+        <h3 class="text-base font-medium">Layout grid</h3>
         <div class="divide-y divide-border rounded-lg border border-border">
             @foreach ($grid as $item)
                 <div class="space-y-2 px-5 py-4">

@@ -11,21 +11,10 @@
     <header class="space-y-1">
         <h2 class="text-3xl font-medium tracking-tight">Radius</h2>
         <p class="text-base text-muted-foreground">
-            One root value, two derived — the kit only ever computes <code>-2px</code> and
-            <code>-4px</code>, so there is no <code>xl</code> step. Buttons use
-            <code>rounded-md</code> (10px); cards and images use <code>rounded-lg</code> (12px).
+            One root value, two derived — this scale only computes <code>-2px</code> and
+            <code>-4px</code> from the root, so there is no <code>xl</code> step.
         </p>
     </header>
-
-    <div class="rounded-lg border border-border bg-secondary px-5 py-4 text-sm">
-        <p class="font-medium text-foreground">The Figma kit contradicts itself here.</p>
-        <p class="text-muted-foreground">
-            Its variable reads <code>--radius: 14</code>, but its own derived values
-            (<code>calc(--radius - 2px) = 10</code>, <code>- 4px = 8</code>) only hold if the root is 12.
-            We use <strong>12px</strong>, because that is what reproduces the rendered design — a button
-            in the kit measures 10px. Flagged with design; revisit if the kit is corrected.
-        </p>
-    </div>
 
     <div class="grid grid-cols-2 gap-5 sm:grid-cols-3">
         @foreach ($radii as $radius)
