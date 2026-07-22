@@ -10,27 +10,27 @@ class PanelTest extends TestCase
     {
         config(['design-system.enabled' => true]);
 
-        $this->get('/design-system')->assertOk()->assertSee('Foundations');
+        $this->withoutVite()->get('/design-system')->assertOk()->assertSee('Foundations');
     }
 
     public function test_unknown_area_404s(): void
     {
         config(['design-system.enabled' => true]);
 
-        $this->get('/design-system/nope')->assertNotFound();
+        $this->withoutVite()->get('/design-system/nope')->assertNotFound();
     }
 
     public function test_preview_404s_without_a_preview_key(): void
     {
         config(['design-system.enabled' => true]);
 
-        $this->get('/design-system/preview/foundations/colors')->assertNotFound();
+        $this->withoutVite()->get('/design-system/preview/foundations/colors')->assertNotFound();
     }
 
     public function test_panel_is_hidden_when_disabled(): void
     {
         config(['design-system.enabled' => false]);
 
-        $this->get('/design-system')->assertNotFound();
+        $this->withoutVite()->get('/design-system')->assertNotFound();
     }
 }
