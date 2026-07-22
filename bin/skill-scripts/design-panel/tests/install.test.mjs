@@ -38,6 +38,14 @@ test('preflight rejects a non-Laravel directory', () => {
   assert.match(err, /preflight/);
 });
 
+test('preflight fails cleanly on malformed composer.json', () => {
+  const root = skeleton();
+  writeFileSync(join(root, 'composer.json'), '{not json');
+  const { status, err } = run(['--root', root], true);
+  assert.equal(status, 1);
+  assert.match(err, /preflight failed/);
+});
+
 test('fresh install copies templates, registers routes, seeds env', () => {
   const root = skeleton();
   const report = JSON.parse(run(['--root', root]).out);

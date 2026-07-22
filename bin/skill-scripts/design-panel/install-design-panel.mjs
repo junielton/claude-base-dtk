@@ -28,9 +28,14 @@ function preflightFail(reason) {
 
 // --- Preflight -------------------------------------------------------------
 if (!existsSync(join(root, 'artisan'))) preflightFail(`no artisan file in ${root} — not a Laravel project`);
-const composer = existsSync(join(root, 'composer.json'))
-  ? JSON.parse(readFileSync(join(root, 'composer.json'), 'utf8'))
-  : null;
+let composer = null;
+if (existsSync(join(root, 'composer.json'))) {
+  try {
+    composer = JSON.parse(readFileSync(join(root, 'composer.json'), 'utf8'));
+  } catch {
+    preflightFail('composer.json is not valid JSON');
+  }
+}
 if (!composer?.require?.['laravel/framework']) preflightFail('composer.json does not require laravel/framework');
 const appCssPath = join(root, 'resources', 'css', 'app.css');
 if (!existsSync(appCssPath)) preflightFail('resources/css/app.css not found');
