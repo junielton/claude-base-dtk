@@ -54,6 +54,8 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 
 All review skills save results to `memories/reviews/` and maintain a `review-state.md` that tracks what was found, resolved, and decided — so each subsequent review knows what changed since the last one. Reviews also load lessons from `docs/lessons/` as mandatory checkpoints.
 
+Before anything is reported, every finding goes through the **`dtk-review-verifier`** subagent (`agents/dtk-review-verifier.md`): a read-only skeptic that tries to disprove the finding against the actual code, with a bar that depends on severity — a blocking finding must be proven or it is dropped, while a suggestion or a question only has its factual premise checked. Refuted findings never reach the output, and each review reports how many were kept vs. refuted.
+
 | Skill | Command | Description |
 |-------|---------|-------------|
 | **review** | `/dtk:review <PR#>` | Reviews your own PR via GitHub MCP — analyzes diff, checks against lessons learned, evaluates comments |

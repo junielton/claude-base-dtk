@@ -7,7 +7,7 @@ description: "Use when reviewing local changes before opening a PR, before pushi
 
 ## Overview
 
-Reviews all changes on the current branch compared to a base branch (including uncommitted changes). Features persistent memory that tracks what was found, resolved, and decided across multiple review rounds. Shared with `/review` and `/review-peer`.
+Reviews all changes on the current branch compared to a base branch (including uncommitted changes). Every finding is put through the `dtk-review-verifier` subagent, which tries to disprove it before it is reported. Features persistent memory that tracks what was found, resolved, and decided across multiple review rounds. Shared with `/review` and `/review-peer`.
 
 - **Base branch**: `$ARGUMENTS` (default: auto-detected by project-context script)
 - **Scope**: All changes from the current branch vs the base branch, including uncommitted changes
@@ -103,7 +103,33 @@ bash $SCRIPTS/review/memory-manager.sh init "$CURRENT_BRANCH"
 
 **First review (no state):** skip this phase entirely.
 
-### 7. Generate Output
+### 7. Verify Findings (kill false positives)
+
+**Execute AFTER reconciliation, BEFORE generating output.** Verifying last avoids spending subagents on findings that memory already resolved or decided.
+
+For each candidate finding, dispatch the `dtk-review-verifier` subagent (Task tool, `subagent_type: dtk-review-verifier`) with:
+
+```
+severity:  blocking | non-blocking | question
+location:  file:line
+claim:     <the one-line assertion you want to report>
+reasoning: <why you believe it>
+scope:     local branch <current-branch> vs <base-branch>, including uncommitted changes
+```
+
+Map your buckets to the severities the verifier expects: Critical → `blocking`, Important → `non-blocking`, Minor/Suggestion → `non-blocking`.
+
+Rules:
+
+- **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
+- **Drop every finding returned as `refuted`.** Do not re-argue the verdict.
+- If it returns `suggested-severity`, move the finding to that bucket before reporting it.
+- Tell the verifier the scope includes uncommitted work, so it compares against the working tree and not just `HEAD`.
+- You are the orchestrator; the verifier cannot spawn its own subagents.
+
+Only surviving findings reach the output. Record the verified/refuted counts for the Final Summary.
+
+### 8. Generate Output
 
 ```bash
 N=$(bash $SCRIPTS/review/memory-manager.sh next-number "$CURRENT_BRANCH" "review")
@@ -150,10 +176,11 @@ Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
 **Final Summary (always include):**
 - Total files analyzed
 - Total issues found by severity
+- **Findings verified: X kept, Y refuted by `dtk-review-verifier`**
 - Lessons Learned that applied (list which ones)
 - Overall assessment: Ready to commit/push | Needs fixes first
 
-### 8. Memory — Save (execute AFTER generating output)
+### 9. Memory — Save (execute AFTER generating output)
 
 Get the template structure:
 ```bash
@@ -182,3 +209,5 @@ echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-s
 | Reading memory before analysis | Load memory AFTER analysis to prevent bias |
 | Forgetting uncommitted changes | Combine `git diff base...HEAD` + `git diff` + `git diff --cached` |
 | Reviewing context lines as new code | Only report issues on `+` lines |
+| Reporting findings without verification | Run step 7 — a false positive here becomes wasted work before the PR |
+| Re-arguing a `refuted` verdict | Drop it. The verifier read the actual code |

@@ -1,0 +1,101 @@
+{
+  "target": "dtk-review-verifier",
+  "fixture": {
+    "base_branch": "main",
+    "head_branch": "feature/orders-invoices",
+    "scope": "local branch feature/orders-invoices vs main"
+  },
+  "cases": [
+    {
+      "id": 1,
+      "name": "blocking-real-n-plus-one-in-added-loop",
+      "severity": "blocking",
+      "location": "app/Http/Controllers/OrderController.php:20",
+      "claim": "N+1 query: the `warehouse` relation is lazy-loaded once per order inside the loop.",
+      "reasoning": "`index()` fetches orders with a plain `get()` and then reads `$order->warehouse->name` for every row, so each iteration issues its own query. There is no `with('warehouse')` anywhere on the builder.",
+      "expect": "real",
+      "why": "The defect is concrete and lives entirely in code added by this change. A verifier that refutes this is over-pruning and the whole agent is useless."
+    },
+    {
+      "id": 2,
+      "name": "blocking-refuted-guard-exists-upstream",
+      "severity": "blocking",
+      "location": "app/Http/Controllers/OrderController.php:27",
+      "claim": "Missing authorization: `show()` returns any order by id without checking it belongs to the authenticated user.",
+      "reasoning": "The method takes a route-model-bound `Order` and serializes it straight to JSON. No `authorize()`, no policy call, no ownership comparison anywhere in the method body.",
+      "expect": "refuted",
+      "why": "`routes/web.php` wraps this route in `EnsureOrderOwner`, which aborts 403 for a non-owner. The claim is only true if you never leave the controller — exactly the false positive the agent exists to kill."
+    },
+    {
+      "id": 3,
+      "name": "blocking-refuted-pre-existing-not-introduced",
+      "severity": "blocking",
+      "location": "app/Legacy/ReportBuilder.php:16",
+      "claim": "N+1 query: `$order->customer->name` is resolved per row inside a loop over `Order::all()`.",
+      "reasoning": "Loading every order and then walking a lazy relation per iteration is a textbook N+1, and this report runs on every dashboard load.",
+      "expect": "refuted",
+      "why": "The N+1 is genuinely there — but the file is byte-identical between base and head. Nothing in this change touched it. Tests the 'introduced by this diff' boundary, which is where reviewers leak unrelated smells."
+    },
+    {
+      "id": 4,
+      "name": "non-blocking-real-partial-duplication",
+      "severity": "non-blocking",
+      "location": "app/Http/Controllers/InvoiceController.php:14",
+      "claim": "This duplicates the BRL formatting already in `App\\Support\\MoneyFormatter::toBrl()` — extract the shared logic instead of reimplementing it here.",
+      "reasoning": "Both places do the same core thing: `number_format($cents / 100, 2, ',', '.')` prefixed with `'R$ '`. This one additionally special-cases a negative total, which the helper does not, but the common (positive) path is identical.",
+      "expect": "real",
+      "why": "Hardened version of the original 'exact duplicate' case: the duplication is now only partial — one code path (negative totals) genuinely diverges from the helper. The premise 'this duplicates X' is still true for the shared core, so the suggestion should survive; a verifier that demands byte-for-byte identity to call a premise 'true' will wrongly refute this."
+    },
+    {
+      "id": 5,
+      "name": "non-blocking-refuted-false-premise",
+      "severity": "non-blocking",
+      "location": "app/Http/Controllers/InvoiceController.php:18",
+      "claim": "N+1 query: `$invoice->customer` is lazy-loaded per iteration; add `with('customer')`.",
+      "reasoning": "Reading a lazy relation without eager loading it first is the usual N+1 shape and should be eager-loaded.",
+      "expect": "refuted",
+      "why": "`show()` handles exactly one invoice — there is no loop and no iteration, so the premise is factually false. Classic pattern-matched reviewer error."
+    },
+    {
+      "id": 6,
+      "name": "question-real-partially-mitigated-not-airtight",
+      "severity": "question",
+      "location": "app/Http/Controllers/InvoiceController.php:27",
+      "claim": "Is `contact_email` guaranteed non-null here? `strtolower(null)` is deprecated in PHP 8.1+.",
+      "reasoning": "The added code reads `$invoice->customer->contact_email` and passes it straight to `strtolower()` with no null check and no default in this method.",
+      "expect": "real",
+      "why": "Hardened version of the original case: there IS a real mitigation to find — `App\\Observers\\CustomerObserver::saving()` defaults a null email to '' on every Eloquent save, wired via `Customer::observe()` in `AppServiceProvider::boot()`. A verifier that stops there would confidently refute. But `database/seeders/LegacyCustomerSeeder` writes a customer row via `DB::table(...)->insert()` with `contact_email => null`, entirely bypassing the observer — so the invariant the claim asks about is NOT actually guaranteed. The question should survive precisely because the partial mitigation is incomplete, and finding that requires following two hops most reviews stop before."
+    },
+    {
+      "id": 7,
+      "name": "question-refuted-already-answered",
+      "severity": "question",
+      "location": "app/Http/Controllers/InvoiceController.php:38",
+      "claim": "Is `total_cents` validated to be a positive integer before the invoice is created?",
+      "reasoning": "`Invoice::create($data)` mass-assigns whatever came in from the request; a zero or negative total would be persisted.",
+      "expect": "refuted",
+      "why": "The `validate()` call five lines above pins `integer` and `min:1`. The answer is plainly in the code the author would point at, so the question is noise."
+    },
+    {
+      "id": 8,
+      "name": "real-but-mis-severed-should-escalate",
+      "severity": "non-blocking",
+      "location": "app/Http/Controllers/UserController.php:24",
+      "claim": "Interpolating the query string into `DB::raw()` is not great style; consider a parameter binding.",
+      "reasoning": "`$term` comes from `$request->query('q')` and is concatenated into the SQL string. A binding would read better.",
+      "expect": "real",
+      "expect_suggested_severity": "blocking",
+      "why": "This is unauthenticated SQL injection filed as a style nit. The verifier must keep it AND escalate it — refuting a real finding over a wrong label, or keeping the wrong label, both fail."
+    },
+    {
+      "id": 9,
+      "name": "blocking-refuted-unprovable-dynamic-dispatch",
+      "severity": "blocking",
+      "location": "app/Events/OrderShipped.php:9",
+      "claim": "Requiring an `Order` in the constructor breaks `EventRouter::fire()`, which instantiates events with a spread array.",
+      "reasoning": "`EventRouter::fire()` does `new $class(...$payload)`. Any caller routing 'OrderShipped' through it now passes the wrong shape and will fatal.",
+      "expect": "refuted",
+      "why": "The event class is built from a runtime string, so no search can tell whether 'OrderShipped' ever reaches `fire()`. The breakage is asserted, not shown. Tests the dynamic-dispatch trigger — the rule that stops confident, unfalsifiable regression claims."
+    }
+  ]
+}

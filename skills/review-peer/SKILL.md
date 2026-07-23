@@ -7,7 +7,7 @@ description: "Use when reviewing a teammate's pull request, providing peer feedb
 
 ## Overview
 
-Reviews someone else's PR with constructive, GitHub-ready feedback. Provides blocking/non-blocking issues and questions for the author. Features persistent memory shared with `/review` and `/review-local`.
+Reviews someone else's PR with constructive, GitHub-ready feedback. Provides blocking/non-blocking issues and questions for the author. Every finding is put through the `dtk-review-verifier` subagent, which tries to disprove it before it reaches the author. Features persistent memory shared with `/review` and `/review-local`.
 
 ## When to Use
 
@@ -113,7 +113,31 @@ bash $SCRIPTS/review/memory-manager.sh init "PR-$ARGUMENTS"
 - If implemented → move to Resolved with "implemented since peer-review-N"
 - If not → keep as Open
 
-### 8. Generate Output
+### 8. Verify Findings (kill false positives)
+
+**Execute AFTER reconciliation, BEFORE generating output.** Verifying last avoids spending subagents on findings that memory already resolved or decided.
+
+For each candidate finding, dispatch the `dtk-review-verifier` subagent (Task tool, `subagent_type: dtk-review-verifier`) with:
+
+```
+severity:  blocking | non-blocking | question
+location:  file:line
+claim:     <the one-line assertion you want to post>
+reasoning: <why you believe it>
+scope:     PR #$ARGUMENTS
+```
+
+Rules:
+
+- **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
+- **Drop every finding returned as `refuted`.** Do not re-argue the verdict.
+- If it returns `suggested-severity`, move the finding to that bucket before posting.
+- Send the severity you actually intend to post: the verifier demands proof for `blocking`, but only checks the factual premise for `non-blocking` / `question`.
+- You are the orchestrator; the verifier cannot spawn its own subagents.
+
+Only surviving findings reach the output. Record the verified/refuted counts for the Final Summary.
+
+### 9. Generate Output
 
 ```bash
 N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "peer-review")
@@ -192,10 +216,11 @@ Justification with code references...
 **Final Summary** (always include):
 - Total comments analyzed from other reviewers
 - How many resulted in agreement vs. disagreement
+- **Findings verified: X kept, Y refuted by `dtk-review-verifier`**
 - Lessons Learned that applied (list which ones)
 - Your recommendation with justification
 
-### 9. Memory — Save (execute AFTER generating output)
+### 10. Memory — Save (execute AFTER generating output)
 
 Update (or create) `review-state.md`. If already exists from `/review` or `/review-local`, **merge** — do not overwrite.
 
@@ -239,3 +264,5 @@ Feedback should be:
 | Assuming something is wrong | Ask a question when uncertain |
 | Vague feedback without code references | Always reference file, line, and snippet |
 | Overwriting shared review-state.md | Merge with existing state, never overwrite |
+| Posting findings without verification | Run step 8 — a false positive on a teammate's PR costs credibility |
+| Re-arguing a `refuted` verdict | Drop it. The verifier read the actual code |
