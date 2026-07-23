@@ -7,7 +7,7 @@ description: "Use when reviewing your own pull request, processing PR review com
 
 ## Overview
 
-Analyzes your own PR's diff and review comments, checks against the project knowledge base (ADRs, lessons, conventions), and outputs categorized tasks. Features persistent memory shared with `/review-local` and `/review-peer`.
+Analyzes your own PR's diff and review comments, checks against the project knowledge base (ADRs, lessons, conventions), and outputs categorized tasks. Your own findings are put through the `dtk-review-verifier` subagent before becoming tasks, so you don't chase phantom work. Features persistent memory shared with `/review-local` and `/review-peer`.
 
 ## When to Use
 
@@ -99,7 +99,32 @@ bash $SCRIPTS/review/memory-manager.sh init "PR-$ARGUMENTS"
 - Matches **Open Item** → mark "still pending"
 - Not in state → mark "new in this review"
 
-### 8. Generate Output
+### 8. Verify Findings (kill false positives)
+
+**Execute AFTER reconciliation, BEFORE generating output.** Applies to findings from **your own analysis** (step 4) — not to the incoming review comments from step 5, which are judged by their own valid / partially valid / not applicable rubric.
+
+For each candidate finding, dispatch the `dtk-review-verifier` subagent (Task tool, `subagent_type: dtk-review-verifier`) with:
+
+```
+severity:  blocking | non-blocking | question
+location:  file:line
+claim:     <the one-line assertion you want to turn into a task>
+reasoning: <why you believe it>
+scope:     PR #$ARGUMENTS
+```
+
+Map your buckets to the severities the verifier expects: 🔴 Critical → `blocking`, 🟡 Important → `non-blocking`, 🟢 Minor/Suggestion → `non-blocking`.
+
+Rules:
+
+- **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
+- **Drop every finding returned as `refuted`.** Do not re-argue the verdict.
+- If it returns `suggested-severity`, move the finding to that bucket before writing it as a task.
+- You are the orchestrator; the verifier cannot spawn its own subagents.
+
+Only surviving findings become tasks. Record the verified/refuted counts for the Final Summary.
+
+### 9. Generate Output
 
 ```bash
 N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "review")
@@ -146,11 +171,12 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.m
 **Final Summary (always include):**
 - Total comments analyzed
 - Tasks vs. responses count
+- **Own findings verified: X kept, Y refuted by `dtk-review-verifier`**
 - Lessons that applied (**file paths**)
 - ADRs that were relevant
 - Overall: ✅ Approve | ⚠️ Approve with Comments | ❌ Request Changes
 
-### 9. Memory — Save (execute AFTER generating output)
+### 10. Memory — Save (execute AFTER generating output)
 
 Get the template structure:
 ```bash
@@ -178,3 +204,5 @@ echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-s
 | Reading memory before analysis | Load memory AFTER analysis to prevent bias |
 | Missing lesson references | Always reference specific `docs/lessons/` file paths |
 | Creating responses file at project root | Save to `memories/reviews/PR-{}/` directory |
+| Turning unverified findings into tasks | Run step 8 first — don't fix a bug that isn't there |
+| Verifying the incoming reviewer comments | Step 8 covers your own findings only |
