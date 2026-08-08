@@ -1,5 +1,5 @@
 ---
-name: scaffold-design-panel
+name: laravel-scaffold-design-panel
 description: "Use when a Laravel project needs the dtk design-system panel installed — a /design-system showcase with per-component preview routes, Figma-link/sync/API features driven by design/manifests/. Triggers on 'scaffold the design panel', 'install the design-system panel', 'cria o painel de design system', or when dtk:implement-design finds no panel to register components into. NOT for building components (implement-design) or verifying them (dsqa)."
 ---
 
