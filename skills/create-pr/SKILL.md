@@ -146,6 +146,84 @@ Fill every section; write "N/A" or "None" for the ones that don't apply.
 - Summarize at the feature/module level — don't list every changed file.
 - Bullet points should help the reviewer understand scope and key decisions.
 
+### Screenshots and previews (when the template asks for them)
+
+**Trigger:** the resolved template has a section header (`#`–`####`) matching,
+case-insensitively, `screenshot|screen shot|preview|image|visual|demo|before.*after|recording|video|gif|captura|tela|print`.
+No such section → skip this block entirely; never add a screenshots section the
+template doesn't have.
+
+**Ask in the session — every time, even when the diff looks non-visual.** Stop
+before pushing and ask one plain question (not `AskUserQuestion` — the user
+answers by pasting images, which that tool can't take):
+
+> The PR template has a **<section name>** section. Send the previews: paste
+> screenshots here, or give file paths / URLs, and say what each one is
+> (before/after, screen name, desktop/mobile). Reply "none" to write N/A.
+
+If images were already pasted earlier in this session (they live under
+`~/.claude/image-cache/<uuid>/`), list them in the question as candidates so the
+user can just say "use those". Wait for the answer; don't create the PR yet.
+
+**Upload** every local file with the bundled script — it prints the
+`user-attachments` URL, the same one the web UI's drag-and-drop produces:
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1)
+"$SCRIPTS/pr/upload-attachment.sh" <file> <owner/repo>
+```
+
+URLs the user gives are used as-is. Never embed base64 (`data:` images are
+stripped by GitHub's sanitizer — they render as an empty box) and never commit
+images to the branch just to link them (they land in the PR diff).
+
+If an upload fails (non-zero exit — the endpoint is undocumented and may
+change), don't block the PR: write `_Pending — attach via the web UI._` in that
+cell or section, create the PR, and flag it in the output with the error line.
+
+An anonymous `curl` of a fresh attachment URL returns 404 — that's expected;
+reviewers are signed in. To check an upload, send the token: a `302` to S3 means
+it's live.
+
+**Layout — keep the description short; nothing but one row is visible:**
+
+- **Visible:** at most one table row — the main before/after (or, for a new
+  screen with no "before", the key screens side by side).
+- **Everything else** goes in collapsed `<details>` blocks, one per group
+  (breakpoint, flow, state), with the count in the `<summary>`.
+- **Widths:** `<img width="380">` for desktop, `width="240"` for mobile, at most
+  3 per row. GitHub wraps each image in a link, so a click opens it full size.
+- **A blank line after `</summary>` is mandatory** — without it GitHub renders
+  the markdown inside as raw text.
+- **Videos:** the bare `user-attachments` URL on its own line, inside a
+  `<details>`.
+- Label every cell (table header) so the reviewer knows what they're looking at.
+
+```markdown
+| Before | After |
+|---|---|
+| <img src="URL_BEFORE" width="380"> | <img src="URL_AFTER" width="380"> |
+
+<details>
+<summary>📱 Mobile — 3 screens</summary>
+
+| Home | Detail | Empty state |
+|---|---|---|
+| <img src="URL" width="240"> | <img src="URL" width="240"> | <img src="URL" width="240"> |
+
+</details>
+
+<details>
+<summary>🎬 Interaction</summary>
+
+URL_VIDEO
+
+</details>
+```
+
+This goes **inside** the template's own screenshots section — keep its header
+exactly as written. "none" → write `N/A` there.
+
 ### ADR links (when applicable)
 
 If the diff touches `docs/adrs/` or `docs/adr/`
@@ -188,7 +266,9 @@ EOF
 
 ## Step 6: Output
 
-Return the PR URL to the user.
+Return the PR URL to the user. If the template had a screenshots section, also
+say how many previews were uploaded — and name any left `_Pending_` with the
+upload error, so the user knows to drag them in via the web UI.
 
 ## Common Mistakes
 
@@ -200,4 +280,7 @@ Return the PR URL to the user.
 | Omitting template sections that "don't apply" | Write "N/A" or "None" — never remove sections |
 | Listing every file in the description | Summarize at the feature/module level |
 | Using `git push` without `-u` | Always `git push -u origin <branch>` |
+| Creating the PR without asking for previews when the template has a screenshots section | Ask in the session first, every time — "none" is a valid answer |
+| Embedding screenshots as base64 or committing them to the branch | Upload with `pr/upload-attachment.sh` and link the `user-attachments` URL |
+| Stacking full-size images down the description | One visible before/after row; the rest in collapsed `<details>` with `width` set |
 | Assuming `main`/`master` as base | Detect it (upstream → decoration log → repo default branch) — the branch may target a feature branch |
