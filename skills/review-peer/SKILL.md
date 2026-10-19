@@ -7,7 +7,9 @@ description: "Use when reviewing a teammate's pull request, providing peer feedb
 
 ## Overview
 
-Reviews someone else's PR with constructive, GitHub-ready feedback. Provides blocking/non-blocking issues and questions for the author. Every finding is put through the `dtk-review-verifier` subagent, which tries to disprove it before it reaches the author. Features persistent memory shared with `/review` and `/review-local`.
+Analyzes someone else's PR and saves a review report: blocking/non-blocking issues and questions for the author, each put through the `dtk-review-verifier` subagent, which tries to disprove it before it is written down. Features persistent memory shared with `/review` and `/review-local`.
+
+This skill writes the report only. It never drafts or posts the GitHub comment: that is `/dtk:review-publish`, which reads the report, keeps only the verdict and the verified findings, applies the user's voice skill and posts after a confirmation.
 
 ## When to Use
 
@@ -234,6 +236,10 @@ Fill in the template with actual data from the analysis (replace placeholders wi
 echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-state "PR-$ARGUMENTS"
 ```
 
+### 11. Hand off
+
+The review is done when the report and the state are saved. To put it on GitHub, invoke `/dtk:review-publish $ARGUMENTS`. Do not draft the comment here: the report's `Reconciliation`, `Existing Review Comments` and `Final Summary` are reviewer memory and must not leak into what the author reads.
+
 ## Diff Reading Rules (CRITICAL)
 
 - **Lines starting with `+`** = NEW code → ANALYZE THIS
@@ -243,8 +249,8 @@ echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-s
 
 ## Tone & Perspective
 
-Feedback should be:
-- **English** — ready to post on GitHub as-is
+Findings should be:
+- **English** — the report is the source `/dtk:review-publish` quotes from
 - **Constructive** — suggest improvements, don't just point out flaws
 - **Humble when uncertain** — ask genuine questions instead of assuming something is wrong
 - **Specific** — always reference file, line, and code snippet
@@ -266,3 +272,4 @@ Feedback should be:
 | Overwriting shared review-state.md | Merge with existing state, never overwrite |
 | Posting findings without verification | Run step 8 — a false positive on a teammate's PR costs credibility |
 | Re-arguing a `refuted` verdict | Drop it. The verifier read the actual code |
+| Drafting the GitHub comment inside this skill | Save the report, then `/dtk:review-publish`; CI state and old-thread status never belong to the author's comment |
