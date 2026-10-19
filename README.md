@@ -61,7 +61,12 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 |-------|---------|-------------|
 | **review** | `/dtk:review <PR#>` | Reviews your own PR via GitHub MCP — analyzes diff, checks against lessons learned, evaluates comments |
 | **review-local** | `/dtk:review-local [base]` | Reviews all changes on current branch vs base (default: `main`) — works before opening a PR |
-| **review-peer** | `/dtk:review-peer <PR#>` | Reviews someone else's PR — constructive, GitHub-ready feedback with blocking/non-blocking/questions format |
+| **review-peer** | `/dtk:review-peer <PR#>` | Reviews someone else's PR and saves the report — blocking/non-blocking/questions, each verified before it is written |
+| **review-publish** | `/dtk:review-publish <PR#>` | Turns the saved report into the GitHub review: verdict, one-line body, one inline comment per verified finding (Q/CR/FFT), written through your own voice skill when one exists, anchors validated against the diff, posted only after confirmation |
+
+#### Voice skill
+
+`review-publish` writes in the neutral register unless you have a writing-voice skill. It finds yours by `voice_skill:` in `~/.claude/dtk.local.md` (or the project's `.claude/dtk.local.md`), by `voice: true` in a skill's `SKILL.md` frontmatter, or by a skill named `<something>-vox` / `<something>-voice`. The voice skill only reshapes wording; the content is frozen before it runs.
 
 ### Documentation
 

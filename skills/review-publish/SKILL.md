@@ -1,0 +1,184 @@
+---
+name: review-publish
+description: "Use after /dtk:review-peer (or with any saved review report) to turn the report into the GitHub review: the verdict, a one-line body, one inline comment per verified finding, written through the user's own voice skill when one exists, validated against the PR diff, and posted only after an explicit confirmation. Also use when asked to post, publish or send a drafted review."
+---
+
+# Review Publish: PR #$ARGUMENTS
+
+## Overview
+
+Turns a saved review report into the exact payload that goes to GitHub, and posts it. The report decides WHAT is said; this skill decides WHERE each thing goes (body vs inline), the voice skill decides HOW it sounds, and nothing else gets in.
+
+The one rule everything below enforces: **the GitHub text contains the verdict and the verified findings, and nothing else.** No CI status, no "thanks for the rebase", no narration of what was checked, no status of old threads, no recap of the author's work. The author sees CI and their own threads already.
+
+## When to Use
+
+- Right after `/dtk:review-peer` saved `peer-review-N.md`
+- Asked to post, publish, or send a review that is already drafted
+- Re-posting after the user asked for adjustments to a draft
+
+## When NOT to Use
+
+- The review has not been done yet (run `/dtk:review-peer` first)
+- Reviewing your own PR (`/dtk:review` produces tasks, not a review to post)
+- Replying to comments on a PR you authored
+
+## Step 0: Resolve Scripts
+
+```bash
+SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+```
+
+## Workflow
+
+### 1. Load the report
+
+```bash
+bash $SCRIPTS/review/project-context.sh
+ls -t memories/reviews/PR-$ARGUMENTS/peer-review-*.md | head -1
+```
+
+Read the latest `peer-review-N.md` (or the path the user gave). Take ONLY these sections into the payload:
+
+- `## Recommendation`
+- `## 🔴 Blocking`
+- `## 🟡 Non-blocking`
+- `## 💬 Questions`
+- the verifier line in `Final Summary` (how many findings were kept)
+
+Never carry into the payload: `Existing Review Comments`, `Lessons Applied`, `Reconciliation with Previous Reviews`, `Still pending`, `Resolved since last review`, CI state, rebase notes, or anything from `review-state.md`. Those are the reviewer's memory, not the author's business. An old item that is still pending already has an open thread; re-posting it is noise.
+
+### 2. Decide the verdict
+
+| Report | `event` |
+|--------|---------|
+| Any 🔴 finding survived verification | `COMMENT` (a regular review, never an approve) |
+| Only 🟡 and 💬, or nothing | `APPROVE` |
+
+A red CI, a pending rebase, or an open old thread never changes this. CI is the author's gate, not the reviewer's.
+
+### 3. Build the payload
+
+Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
+
+```json
+{
+  "pr": 0,
+  "repo": "owner/repo",
+  "commit_id": "<full 40-char head SHA from gh pr view --json headRefOid>",
+  "event": "APPROVE | COMMENT",
+  "body": "",
+  "comments": [
+    { "path": "app/File.php", "line": 29, "tag": "FFT", "body": "FFT: ..." }
+  ]
+}
+```
+
+**Inline comments.** One per finding that the verifier kept. Tag from the bucket: 🔴 → `CR`, 🟡 → `FFT`, 💬 → `Q`. Each body:
+
+- starts with the tag and a colon (`CR: `, `FFT: `, `Q: `)
+- is at most two sentences, framed as a proposal ("could", "might be worth"), never a verdict
+- names behaviour or the file, never a commit SHA, a line number in prose, or "non-blocking" (the tag already says it)
+- is in English
+- `line` is the finding's `file:line`; it must be a line ADDED by the PR, step 5 checks that
+
+Findings marked `refuted` or `not checked` never reach GitHub. If a finding was not verified, it is not posted; send it back through `/dtk:review-peer` step 8 instead of posting it with a hedge.
+
+**Body.** Exactly one of these shapes, nothing appended:
+
+| Situation | Body |
+|-----------|------|
+| `APPROVE`, no inline comments | `LGTM` or a bare `👍` |
+| `APPROVE`, with inline comments | `Approving, a few notes inline.` (no emoji: a positive emoji next to real notes reads as "nothing to see") |
+| `COMMENT` (has CR) | `A couple of things to sort before merge, inline.` |
+| Inline only, no verdict (user's choice at the gate) | empty string |
+
+Banned in the body, with no exceptions: CI or check status, "thanks for the <act>", any file/class/method name, any count or preview of what the inline comments say, "non-blocking", the state of a previous thread, any sentence that narrates a check ("verified", "went through", "grepped", "traced").
+
+### 4. Voice pass
+
+```bash
+bash $SCRIPTS/review/voice-resolver.sh
+```
+
+The resolver returns the user's writing-voice skill, if they have one (see [Voice skill resolution](#voice-skill-resolution)). Then:
+
+- **`voice_skill` found:** call the `invoke` line the resolver printed (a `Skill` tool call with that name; never rewrite "in that style" from memory) once per message (body, then each inline body) with this exact brief:
+
+  > Rewrite the wording of the message below in the user's voice. Content is frozen: do not add, remove, soften or reorder any fact, keep the leading `Q:`/`CR:`/`FFT:` tag, keep the file reference, stay within two sentences for an inline comment and one line for a body. Output only the message.
+
+  Replace the payload text with what comes back. If the voice skill added a fact, a thanks for an act, a CI mention or a status of another thread, drop that sentence; the voice skill shapes words, it does not own content.
+
+- **`candidates` has more than one entry:** ask the user once which one to use, then persist it (see below) so the question is never asked again.
+
+- **No voice skill:** keep the neutral register already in the payload (English, direct, courteous, proposals not verdicts) and say once in the transcript: "No writing-voice skill found, using the neutral register. Mark yours with `voice: true` in its SKILL.md frontmatter or set `voice_skill` in `~/.claude/dtk.local.md`." Never name a specific skill as the expected one.
+
+### 5. Validate anchors
+
+```bash
+bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json --dry-run
+```
+
+The dry run fails, and names the offender, when: `commit_id` is not the current head (the author pushed; re-anchor or re-review), it is not 40 characters, or an inline `line` is not an added line in the PR diff. GitHub rejects the WHOLE review with a 422 on any of these, so nothing is posted until the dry run is clean.
+
+### 6. Confirmation gate
+
+Print, in this order: the verdict, the full body, every inline comment as `path:line` followed by its text. Then end the turn with `AskUserQuestion`, never with a plain-text question:
+
+```
+header:   "PR #$ARGUMENTS"
+question: "Review ready: <APPROVE|COMMENT>. Post it?"
+options:
+  - "Post <approve|comment>"      post exactly as drafted
+  - "Post, with changes"          the user says what to change first, then back to step 4
+  - "Inline only, no verdict"     event COMMENT, empty body, inline comments only
+  - "Hold"                        post nothing, leave the payload saved
+```
+
+Nothing goes to GitHub before a choice here. The gate is on posting, not on drafting.
+
+### 7. Post
+
+```bash
+bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json
+```
+
+The script re-runs the dry-run checks, then submits one review via `gh api`. On a 422 it prints GitHub's message and leaves the payload untouched; fix the anchor and run again.
+
+### 8. Record
+
+Append to `memories/reviews/PR-$ARGUMENTS/review-state.md` under `## Notes`:
+
+```
+- Posted peer-review-N as <event> at <commit_id short>, <count> inline (YYYY-MM-DD)
+```
+
+## Voice skill resolution
+
+The plugin ships no voice of its own and names no user's skill. `voice-resolver.sh` looks, in order, and stops at the first tier that yields something:
+
+1. **Setting.** `voice_skill:` in the frontmatter of `.claude/dtk.local.md` (project), then `~/.claude/dtk.local.md` (user).
+2. **Marker.** Any `SKILL.md` under `.claude/skills/*/`, `~/.claude/skills/*/` or an installed plugin's `skills/*/` whose frontmatter has `voice: true` (or `metadata.role: voice`).
+3. **Heuristic.** A skill directory named `*-vox`, `*vox` or `*-voice`, or a description that mentions a writing voice ("in <their> voice", "sounds like", "personal voice"). Skills about spoken output (speak, read aloud, TTS) are excluded.
+4. **None.** Neutral register.
+
+A plugin skill resolves to its invoke name `<plugin>:<skill>`; a user or project skill to its bare name. To persist a choice, write `~/.claude/dtk.local.md`:
+
+```markdown
+---
+voice_skill: <name>
+---
+```
+
+## Common Mistakes
+
+| Mistake | Fix |
+|---------|-----|
+| Body mentions CI ("CI is green now, so approving") | CI is the author's gate; the body is the verdict only |
+| Body thanks for an act ("thanks for the rebase/fixes") | Drop it; "nice work" is the only praise allowed and only on a clean approve |
+| Body reports an old FFT/Q as "still open" | The thread is already open; never re-post reconciliation |
+| Posting a finding marked `not checked` | Only `verified` findings reach GitHub |
+| Letting the voice skill add content | Its brief freezes content; strip anything it adds |
+| Hardcoding a voice skill name in this plugin or a boot prompt | Resolution is by setting, marker or heuristic, never by name |
+| Abbreviated `commit_id`, or an inline `line` on a context line | Run the dry run; GitHub 422s the whole review |
+| Ending the turn with a prose question | `AskUserQuestion` is the last call of the turn |
