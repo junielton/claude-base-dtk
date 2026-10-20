@@ -123,19 +123,40 @@ The dry run fails, and names the offender, when: `commit_id` is not the current 
 
 ### 6. Confirmation gate
 
-Print, in this order: the verdict, the full body, every inline comment as `path:line` followed by its text. Then end the turn with `AskUserQuestion`, never with a plain-text question:
+The draft lives INSIDE the gate, in each option's `preview`. The question dialog covers the transcript, so a draft printed above it (or worse, a one-line summary of it) is never what the user reads before choosing. End the turn with `AskUserQuestion`, never with a plain-text question:
 
 ```
 header:   "PR #$ARGUMENTS"
 question: "Review ready: <APPROVE|COMMENT>. Post it?"
-options:
-  - "Post <approve|comment>"      post exactly as drafted
-  - "Post, with changes"          the user says what to change first, then back to step 4
-  - "Inline only, no verdict"     event COMMENT, empty body, inline comments only
-  - "Hold"                        post nothing, leave the payload saved
+options (single-select, every option carries a preview):
+  - "Post <approve|comment>"   preview: the full draft (below)        → step 7
+  - "Pick what goes"           preview: the numbered inline comments  → step 6b
+                               (omit this option when there are no inline comments)
+  - "Post, with changes"       preview: the full draft; the user says what to change → step 4
+  - "Hold"                     preview: the payload path; post nothing
 ```
 
-Nothing goes to GitHub before a choice here. The gate is on posting, not on drafting.
+The full-draft preview is the payload rendered verbatim, never summarized, and dense: the preview box shows only about 5 lines before it cuts the rest ("N lines hidden"), so no blank lines, no labels like `BODY:`, no commit SHA, one line per comment:
+
+```
+APPROVE · "Approving, a few notes inline."
+CR · File.php:42 — <full comment text, tag prefix dropped>
+FFT · x.js:17 — <full comment text, tag prefix dropped>
+```
+
+Because long drafts still overflow the box, also print the same draft as plain text as the last thing in the transcript, right before the `AskUserQuestion` call. The dialog renders below it, so the full draft stays readable above the options.
+
+"Type something" and "Chat about this" are added by Claude Code itself; do not add them as options. Nothing goes to GitHub before a choice here. The gate is on posting, not on drafting.
+
+### 6b. Pick what goes
+
+One `AskUserQuestion` call. `AskUserQuestion` takes at most 4 questions with at most 4 options each, and `preview` works only on single-select, so:
+
+- **Question 1**, header `Verdict`, single-select: `"<APPROVE|COMMENT> + body"` or `"No verdict, inline only"` (event `COMMENT`, empty body).
+- **Questions 2–4**, `multiSelect: true`, header `Comments 1/3` and so on: up to 4 inline comments each, ordered CR → FFT → Q. Label `<TAG> · <file basename>:<line>`; description is the full comment text. A checked box means "post it".
+- **More than 12 comments:** after the answer, ask the next batch in a new call (up to 4 multiSelect questions, 16 comments). Never truncate or merge comments to fit.
+
+Rewrite `publish-N.json` with the chosen verdict and only the checked comments. Keep the dropped ones in `publish-N.dropped.json` so a later "put that one back" needs no redraft. Re-run the step 5 dry run, then go straight to step 7: what the user checked is the explicit choice. With no verdict and no comment checked, post nothing and treat the result as Hold.
 
 ### 7. Post
 
@@ -182,3 +203,6 @@ voice_skill: <name>
 | Hardcoding a voice skill name in this plugin or a boot prompt | Resolution is by setting, marker or heuristic, never by name |
 | Abbreviated `commit_id`, or an inline `line` on a context line | Run the dry run; GitHub 422s the whole review |
 | Ending the turn with a prose question | `AskUserQuestion` is the last call of the turn |
+| Summarizing the draft above the gate ("approve with LGTM, no inline") | The verbatim draft goes in the transcript right above the gate AND, dense, in the options' `preview` |
+| A roomy preview (`BODY:` label, blank lines, SHA) | The box cuts at ~5 lines; the comments are what got hidden |
+| Squeezing 10 comments into one 4-option question | Paginate: 4 per question, 3 comment questions per call, then a new call |
