@@ -1,0 +1,12 @@
+{
+  "pr": 101,
+  "repo": "acme/shop",
+  "commit_id": "d7617727444c290b255b08def8a1a097193f0be4",
+  "event": "COMMENT",
+  "body": "A couple of things to sort before merge, all inline.",
+  "comments": [
+    { "path": "app/Http/Controllers/OrderExportController.php", "line": 12, "tag": "CR", "body": "CR: without a `status` param this ends up filtering on `status IS NULL`, so OrderExportController returns an empty file instead of every order. Could we apply the filter only when it's present, like `->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))`?" },
+    { "path": "app/Http/Controllers/OrderExportController.php", "line": 18, "tag": "FFT", "body": "FFT: each row here touches `customer`, so OrderExportController runs one query per order. Might be worth loading them up front with `Order::with('customer')`." },
+    { "path": "app/Services/InvoiceMailer.php", "line": 15, "tag": "FFT", "body": "FFT: `send()` in InvoiceMailer is synchronous, so the request waits on SMTP and a mail failure fails the request. Could `queue()` work here to move it off the request path?" }
+  ]
+}

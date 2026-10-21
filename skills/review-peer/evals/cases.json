@@ -1,0 +1,49 @@
+{
+  "fixture": {
+    "source": "agents/evals/dtk-review-verifier/fixture",
+    "base_branch": "main",
+    "head_branch": "feature/orders-invoices"
+  },
+  "expectations": [
+    {
+      "id": 1,
+      "name": "sql-injection-user-search",
+      "expect": "blocking",
+      "file": "UserController",
+      "keywords": "inject|DB::raw|raw\\b|sanitiz|bind",
+      "scope": "text"
+    },
+    {
+      "id": 2,
+      "name": "n-plus-one-added-loop",
+      "expect": "non-blocking",
+      "file": "OrderController",
+      "keywords": "N\\+1|eager|\\bwith\\(|warehouse|loop",
+      "scope": "heading"
+    },
+    {
+      "id": 3,
+      "name": "money-formatter-duplication",
+      "expect": "non-blocking",
+      "file": "InvoiceController",
+      "keywords": "MoneyFormatter|duplicat|number_format|reimplement|format",
+      "scope": "heading"
+    },
+    {
+      "id": 4,
+      "name": "pre-existing-n-plus-one",
+      "expect": "absent",
+      "file": "ReportBuilder",
+      "keywords": ".",
+      "scope": "heading"
+    },
+    {
+      "id": 5,
+      "name": "missing-authorization-in-show",
+      "expect": "absent-or-question",
+      "file": "OrderController",
+      "keywords": "authori|ownership|\\bowner|\\bauth\\b|access control|IDOR|policy|\\bgate\\b",
+      "scope": "heading"
+    }
+  ]
+}

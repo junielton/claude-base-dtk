@@ -1,0 +1,15 @@
+{
+  "pr": 101,
+  "repo": "acme/shop",
+  "commit_id": "d7617727444c290b255b08def8a1a097193f0be4",
+  "event": "APPROVE",
+  "body": "Approving, a few notes inline.",
+  "comments": [
+    {
+      "path": "resources/js/cart.js",
+      "line": 8,
+      "tag": "FFT",
+      "body": "A coupon larger than the cart total pushes the total below zero."
+    }
+  ]
+}

@@ -134,7 +134,6 @@ Rules:
 - **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
 - **Drop every finding returned as `refuted`.** Do not re-argue the verdict.
 - If it returns `suggested-severity`, move the finding to that bucket before posting.
-- Send the severity you actually intend to post: the verifier demands proof for `blocking`, but only checks the factual premise for `non-blocking` / `question`.
 - You are the orchestrator; the verifier cannot spawn its own subagents.
 
 Only surviving findings reach the output. Record the verified/refuted counts for the Final Summary.

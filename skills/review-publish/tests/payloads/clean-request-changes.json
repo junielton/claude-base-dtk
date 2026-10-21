@@ -1,0 +1,21 @@
+{
+  "pr": 101,
+  "repo": "acme/shop",
+  "commit_id": "d7617727444c290b255b08def8a1a097193f0be4",
+  "event": "REQUEST_CHANGES",
+  "body": "A couple of things to sort before merge, inline.",
+  "comments": [
+    {
+      "path": "app/Http/Controllers/OrderExportController.php",
+      "line": 12,
+      "tag": "CR",
+      "body": "CR: Without a `status` param the query filters on `status IS NULL`, so the export is empty. I'd apply the filter only when the param is present.\n\n```suggestion\n        $orders = Order::query()->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))->get();\n```"
+    },
+    {
+      "path": "app/Http/Controllers/OrderExportController.php",
+      "line": 18,
+      "tag": "FFT",
+      "body": "FFT: Each row reads the customer relation, one query per order. I'd load it with Order::with('customer')."
+    }
+  ]
+}

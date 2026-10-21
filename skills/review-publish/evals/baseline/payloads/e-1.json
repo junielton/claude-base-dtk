@@ -1,0 +1,11 @@
+{
+  "pr": 105,
+  "repo": "acme/shop",
+  "commit_id": "d7617727444c290b255b08def8a1a097193f0be4",
+  "event": "APPROVE",
+  "body": "Approving, a few notes inline.",
+  "comments": [
+    { "path": "resources/js/cart.js", "line": 8, "tag": "FFT", "body": "FFT: when the coupon amount is bigger than the cart total, cart.js could end up returning a negative total. Might be worth clamping it at 0." },
+    { "path": "app/Services/InvoiceMailer.php", "line": 17, "tag": "Q", "body": "Q: in InvoiceMailer.php, is `sent_at` meant as \"handed to the mailer\" or \"delivered\"? If the mail gets queued later, the invoice could read as sent before it actually left." }
+  ]
+}

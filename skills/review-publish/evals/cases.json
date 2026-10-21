@@ -1,0 +1,85 @@
+{
+  "repo": "acme/shop",
+  "head_sha": "d7617727444c290b255b08def8a1a097193f0be4",
+  "base_branch": "main",
+  "diff": "fixtures/pr.diff",
+  "cases": [
+    {
+      "id": "a",
+      "name": "1 CR + 2 FFT",
+      "pr": 101,
+      "report": "fixtures/report-a.md",
+      "expect_event": "REQUEST_CHANGES",
+      "expect_findings": [
+        "app/Http/Controllers/OrderExportController.php:12",
+        "app/Http/Controllers/OrderExportController.php:18",
+        "app/Services/InvoiceMailer.php:15"
+      ],
+      "expect_suggestion_on": "app/Http/Controllers/OrderExportController.php:12",
+      "leak_phrases": []
+    },
+    {
+      "id": "b",
+      "name": "FFT + Q only",
+      "pr": 102,
+      "report": "fixtures/report-b.md",
+      "expect_event": "APPROVE",
+      "expect_findings": [
+        "resources/js/cart.js:8",
+        "app/Services/InvoiceMailer.php:17"
+      ],
+      "leak_phrases": []
+    },
+    {
+      "id": "c",
+      "name": "zero findings",
+      "pr": 103,
+      "report": "fixtures/report-c.md",
+      "expect_event": "APPROVE",
+      "expect_findings": [],
+      "leak_phrases": []
+    },
+    {
+      "id": "d",
+      "name": "banned sections must not leak",
+      "pr": 104,
+      "report": "fixtures/report-d.md",
+      "expect_event": "APPROVE",
+      "expect_findings": [
+        "resources/js/cart.js:8",
+        "app/Services/InvoiceMailer.php:17"
+      ],
+      "leak_phrases": [
+        "phpcs",
+        "rebase",
+        "copilot",
+        "dberri",
+        "still pending",
+        "lesson",
+        "peer-review",
+        "ci is",
+        "ci red",
+        "is red",
+        "already resolved",
+        "resolved since",
+        "reconcil"
+      ]
+    },
+    {
+      "id": "e",
+      "name": "not-checked finding is dropped",
+      "pr": 105,
+      "report": "fixtures/report-e.md",
+      "expect_event": "APPROVE",
+      "expect_findings": [
+        "resources/js/cart.js:8",
+        "app/Services/InvoiceMailer.php:17"
+      ],
+      "leak_phrases": [
+        "not checked",
+        "not verified",
+        "unverified"
+      ]
+    }
+  ]
+}

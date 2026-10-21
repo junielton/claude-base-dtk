@@ -1,0 +1,76 @@
+diff --git a/app/Http/Controllers/OrderExportController.php b/app/Http/Controllers/OrderExportController.php
+new file mode 100644
+index 0000000..a0b0180
+--- /dev/null
++++ b/app/Http/Controllers/OrderExportController.php
+@@ -0,0 +1,31 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use App\Models\Order;
++use Illuminate\Http\Request;
++
++class OrderExportController extends Controller
++{
++    public function index(Request $request)
++    {
++        $orders = Order::query()->where('status', $request->input('status'))->get();
++
++        $rows = [];
++        foreach ($orders as $order) {
++            $rows[] = [
++                $order->id,
++                $order->customer->email,
++                $order->total / 100,
++            ];
++        }
++
++        return response()->streamDownload(function () use ($rows) {
++            $out = fopen('php://output', 'w');
++            foreach ($rows as $row) {
++                fputcsv($out, $row);
++            }
++            fclose($out);
++        }, 'orders.csv');
++    }
++}
+diff --git a/app/Services/InvoiceMailer.php b/app/Services/InvoiceMailer.php
+new file mode 100644
+index 0000000..f371be5
+--- /dev/null
++++ b/app/Services/InvoiceMailer.php
+@@ -0,0 +1,19 @@
++<?php
++
++namespace App\Services;
++
++use App\Mail\InvoiceReady;
++use App\Models\Invoice;
++use Illuminate\Support\Facades\Mail;
++
++class InvoiceMailer
++{
++    public function send(Invoice $invoice): void
++    {
++        $to = $invoice->customer->email;
++
++        Mail::to($to)->send(new InvoiceReady($invoice));
++
++        $invoice->update(['sent_at' => now()]);
++    }
++}
+diff --git a/resources/js/cart.js b/resources/js/cart.js
+index 18ffad1..25b3249 100644
+--- a/resources/js/cart.js
++++ b/resources/js/cart.js
+@@ -1,3 +1,9 @@
+ export function cartTotal(cart) {
+   return cart.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+ }
++
++export function applyCoupon(cart, code) {
++  const coupon = coupons[code.toLowerCase()];
++  if (!coupon) return cart;
++  return { ...cart, total: cartTotal(cart) - coupon.amount };
++}
