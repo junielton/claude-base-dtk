@@ -52,8 +52,10 @@ Never carry into the payload: `Existing Review Comments`, `Lessons Applied`, `Re
 
 | Report | `event` |
 |--------|---------|
-| Any 🔴 finding survived verification | `COMMENT` (a regular review, never an approve) |
+| Any 🔴 finding survived verification | `REQUEST_CHANGES` |
 | Only 🟡 and 💬, or nothing | `APPROVE` |
+
+A CR is a request the author must answer, and under `COMMENT` it is one they can decline (they did, twice in 6). The inline carries the content; the verdict carries the block. `COMMENT` is never chosen here; it exists only for the gate's "no verdict, inline only" option, and only when no CR is posted.
 
 A red CI, a pending rebase, or an open old thread never changes this. CI is the author's gate, not the reviewer's.
 
@@ -66,7 +68,7 @@ Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
   "pr": 0,
   "repo": "owner/repo",
   "commit_id": "<full 40-char head SHA from gh pr view --json headRefOid>",
-  "event": "APPROVE | COMMENT",
+  "event": "APPROVE | REQUEST_CHANGES",
   "body": "",
   "comments": [
     { "path": "app/File.php", "line": 29, "tag": "FFT", "body": "FFT: ..." }
@@ -77,10 +79,25 @@ Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
 **Inline comments.** One per finding that the verifier kept. Tag from the bucket: 🔴 → `CR`, 🟡 → `FFT`, 💬 → `Q`. Each body:
 
 - starts with the tag and a colon (`CR: `, `FFT: `, `Q: `)
-- is at most two sentences, framed as a proposal ("could", "might be worth"), never a verdict
+- is at most two sentences, and states the ask directly: "I'd …", "worth …", "this needs …", plus the reason. The humility lives in the reason and in the tag (FFT already says non-blocking), never in the ask
+- for a CR, names what unblocks it
 - names behaviour or the file, never a commit SHA, a line number in prose, or "non-blocking" (the tag already says it)
 - is in English
 - `line` is the finding's `file:line`; it must be a line ADDED by the PR, step 5 checks that
+
+**No hedges.** Banned in every body (the review body and each inline), case-insensitive: `might be worth`, `maybe`, `could be worth`, `feel free to ignore`, `totally optional`, `take it or leave it`, `fine to leave`, `not a big deal`, `just a thought`. Do not mark a finding optional either; the tag says how much it blocks. `post-review.sh` runs `tone-lint.sh` on the final payload and refuses it, naming the phrase.
+
+**Suggestion blocks.** When the fix is a local patch (a line or a few lines that replace the anchored ones), the comment ships it as a GitHub suggestion, after the one or two sentences:
+
+````
+FFT: This query runs once per order. I'd eager load the relation.
+
+```suggestion
+$orders = Order::with('customer')->get();
+```
+````
+
+The block replaces the anchored line(s), so it holds the full replacement text. A fix that spans files or needs a design choice stays prose. The fence does not count toward the two sentences.
 
 Findings marked `refuted` or `not checked` never reach GitHub. If a finding was not verified, it is not posted; send it back through `/dtk:review-peer` step 8 instead of posting it with a hedge.
 
@@ -90,8 +107,8 @@ Findings marked `refuted` or `not checked` never reach GitHub. If a finding was 
 |-----------|------|
 | `APPROVE`, no inline comments | `LGTM` or a bare `👍` |
 | `APPROVE`, with inline comments | `Approving, a few notes inline.` (no emoji: a positive emoji next to real notes reads as "nothing to see") |
-| `COMMENT` (has CR) | `A couple of things to sort before merge, inline.` |
-| Inline only, no verdict (user's choice at the gate) | empty string |
+| `REQUEST_CHANGES` (has CR) | `A couple of things to sort before merge, inline.` |
+| Inline only, no verdict (user's choice at the gate, never with a CR) | empty string, event `COMMENT` |
 
 Banned in the body, with no exceptions: CI or check status, "thanks for the <act>", any file/class/method name, any count or preview of what the inline comments say, "non-blocking", the state of a previous thread, any sentence that narrates a check ("verified", "went through", "grepped", "traced").
 
@@ -105,13 +122,13 @@ The resolver returns the user's writing-voice skill, if they have one (see [Voic
 
 - **`voice_skill` found:** call the `invoke` line the resolver printed (a `Skill` tool call with that name; never rewrite "in that style" from memory) once per message (body, then each inline body) with this exact brief:
 
-  > Rewrite the wording of the message below in the user's voice. Content is frozen: do not add, remove, soften or reorder any fact, keep the leading `Q:`/`CR:`/`FFT:` tag, keep the file reference, stay within two sentences for an inline comment and one line for a body. Output only the message.
+  > Rewrite the wording of the message below in the user's voice. Content is frozen: do not add, remove, soften or reorder any fact, keep the leading `Q:`/`CR:`/`FFT:` tag, keep the file reference, keep any ```suggestion block byte for byte, stay within two sentences for an inline comment and one line for a body. Never add a hedge or mark anything optional: state the ask directly ("I'd …"), whatever your usual register says. Output only the message.
 
-  Replace the payload text with what comes back. If the voice skill added a fact, a thanks for an act, a CI mention or a status of another thread, drop that sentence; the voice skill shapes words, it does not own content.
+  Replace the payload text with what comes back. If the voice skill added a fact, a thanks for an act, a CI mention or a status of another thread, drop that sentence; the voice skill shapes words, it does not own content. **If it added a hedge** (the banned list in step 3), rewrite that sentence as a direct ask yourself: many voice skills prescribe "could" and "might be worth", and the brief does not always win. The lint in step 5 runs after this pass and is what holds.
 
 - **`candidates` has more than one entry:** ask the user once which one to use, then persist it (see below) so the question is never asked again.
 
-- **No voice skill:** keep the neutral register already in the payload (English, direct, courteous, proposals not verdicts) and say once in the transcript: "No writing-voice skill found, using the neutral register. Mark yours with `voice: true` in its SKILL.md frontmatter or set `voice_skill` in `~/.claude/dtk.local.md`." Never name a specific skill as the expected one.
+- **No voice skill:** keep the neutral register already in the payload (English, direct, courteous, a stated ask with its reason) and say once in the transcript: "No writing-voice skill found, using the neutral register. Mark yours with `voice: true` in its SKILL.md frontmatter or set `voice_skill` in `~/.claude/dtk.local.md`." Never name a specific skill as the expected one.
 
 ### 5. Validate anchors
 
@@ -119,7 +136,9 @@ The resolver returns the user's writing-voice skill, if they have one (see [Voic
 bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json --dry-run
 ```
 
-The dry run fails, and names the offender, when: `commit_id` is not the current head (the author pushed; re-anchor or re-review), it is not 40 characters, or an inline `line` is not an added line in the PR diff. GitHub rejects the WHOLE review with a 422 on any of these, so nothing is posted until the dry run is clean.
+The dry run runs `tone-lint.sh` first, on the payload as it stands after the voice pass. It fails, and names the rule and the comment, on a banned hedge, a body without a `Q: `/`CR: `/`FFT: ` prefix, an inline over two sentences, or a CR under any event but `REQUEST_CHANGES`. Fix the wording (or the event) and run again; never edit the lint or the list to make a payload pass.
+
+It also fails, and names the offender, when: `commit_id` is not the current head (the author pushed; re-anchor or re-review), it is not 40 characters, or an inline `line` is not an added line in the PR diff. GitHub rejects the WHOLE review with a 422 on any of these, so nothing is posted until the dry run is clean.
 
 ### 6. Confirmation gate
 
@@ -127,9 +146,9 @@ The draft lives INSIDE the gate, in each option's `preview`. The question dialog
 
 ```
 header:   "PR #$ARGUMENTS"
-question: "Review ready: <APPROVE|COMMENT>. Post it?"
+question: "Review ready: <APPROVE|REQUEST_CHANGES>. Post it?"
 options (single-select, every option carries a preview):
-  - "Post <approve|comment>"   preview: the full draft (below)        → step 7
+  - "Post <approve|request changes>"   preview: the full draft (below)  → step 7
   - "Pick what goes"           preview: the numbered inline comments  → step 6b
                                (omit this option when there are no inline comments)
   - "Post, with changes"       preview: the full draft; the user says what to change → step 4
@@ -139,7 +158,7 @@ options (single-select, every option carries a preview):
 The full-draft preview is the payload rendered verbatim, never summarized, and dense: the preview box shows only about 5 lines before it cuts the rest ("N lines hidden"), so no blank lines, no labels like `BODY:`, no commit SHA, one line per comment:
 
 ```
-APPROVE · "Approving, a few notes inline."
+REQUEST_CHANGES · "A couple of things to sort before merge, inline."
 CR · File.php:42 — <full comment text, tag prefix dropped>
 FFT · x.js:17 — <full comment text, tag prefix dropped>
 ```
@@ -152,11 +171,11 @@ Because long drafts still overflow the box, also print the same draft as plain t
 
 One `AskUserQuestion` call. `AskUserQuestion` takes at most 4 questions with at most 4 options each, and `preview` works only on single-select, so:
 
-- **Question 1**, header `Verdict`, single-select: `"<APPROVE|COMMENT> + body"` or `"No verdict, inline only"` (event `COMMENT`, empty body).
+- **Question 1**, header `Verdict`, single-select: `"<APPROVE|REQUEST_CHANGES> + body"` or `"No verdict, inline only"` (event `COMMENT`, empty body). Offer the second only when no CR is among the comments; a CR carries the block, so it never posts under `COMMENT`.
 - **Questions 2–4**, `multiSelect: true`, header `Comments 1/3` and so on: up to 4 inline comments each, ordered CR → FFT → Q. Label `<TAG> · <file basename>:<line>`; description is the full comment text. A checked box means "post it".
 - **More than 12 comments:** after the answer, ask the next batch in a new call (up to 4 multiSelect questions, 16 comments). Never truncate or merge comments to fit.
 
-Rewrite `publish-N.json` with the chosen verdict and only the checked comments. Keep the dropped ones in `publish-N.dropped.json` so a later "put that one back" needs no redraft. Re-run the step 5 dry run, then go straight to step 7: what the user checked is the explicit choice. With no verdict and no comment checked, post nothing and treat the result as Hold.
+Rewrite `publish-N.json` with the chosen verdict and only the checked comments. If every CR was unchecked, the verdict follows step 2 again (`APPROVE`). Keep the dropped ones in `publish-N.dropped.json` so a later "put that one back" needs no redraft. Re-run the step 5 dry run, then go straight to step 7: what the user checked is the explicit choice. With no verdict and no comment checked, post nothing and treat the result as Hold.
 
 ### 7. Post
 
@@ -200,6 +219,10 @@ voice_skill: <name>
 | Body reports an old FFT/Q as "still open" | The thread is already open; never re-post reconciliation |
 | Posting a finding marked `not checked` | Only `verified` findings reach GitHub |
 | Letting the voice skill add content | Its brief freezes content; strip anything it adds |
+| A hedged ask ("might be worth", "could we", "feel free to ignore") because the voice skill prescribes it | Rewrite it as a direct ask ("I'd …" + the reason); the lint in step 5 rejects what survives |
+| A CR posted as `COMMENT` | `REQUEST_CHANGES`: under `COMMENT` the author can decline it, and `tone-lint.sh` refuses the payload |
+| A CR body marked optional or with no word on what unblocks it | A CR names what unblocks it and is never optional; if it is optional it is an FFT |
+| Prose where the fix is a local patch | Ship a ```suggestion block with the replacement lines |
 | Hardcoding a voice skill name in this plugin or a boot prompt | Resolution is by setting, marker or heuristic, never by name |
 | Abbreviated `commit_id`, or an inline `line` on a context line | Run the dry run; GitHub 422s the whole review |
 | Ending the turn with a prose question | `AskUserQuestion` is the last call of the turn |
