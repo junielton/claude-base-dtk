@@ -83,3 +83,28 @@ Model: session default (not pinned). Fixture: the verifier fixture, unchanged.
 With the hint, the only labeling miss is the added-loop N+1: filed as 🟡 non-blocking in every
 run, where the spec expects 🔴. Every run also raised the same unlabeled 🔴 (invoice routes
 lack an ownership check, `routes/web.php`), which the fixture does not label.
+
+### After — hint deleted (`SKILL.md` at `6753220`), 5 runs
+
+| Finding | Expected | run1 | run2 | run3 | run4 | run5 | Pass |
+|---|---|---|---|---|---|---|---|
+| SQL injection, `UserController` | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 | 5/5 |
+| N+1 in added loop, `OrderController::index` | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | **0/5** |
+| `MoneyFormatter` duplication | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 5/5 |
+| Pre-existing N+1, `ReportBuilder` | absent | absent | absent | absent | absent | absent | 5/5 |
+| Missing authorization in `show()` | absent / 💬 | absent | absent | absent | absent | absent | 5/5 |
+
+### Did the deletion move anything?
+
+No. With the hint and without it, every expectation produced the same bucket in all 5 runs:
+SQL injection 🔴, the duplication 🟡, the pre-existing N+1 and the `show()` authorization
+finding absent. The added-loop N+1 went to 🟡 in 10 of 10 runs, 5 with the hint and 5 without.
+At this sample size (5 + 5, one model, one fixture) there is no measurable effect, in either
+direction.
+
+So the hint is not what keeps the N+1 out of 🔴. The likelier cause is the skill's own
+Severity Definitions, which define 🔴 as "bugs, security issues, breaking changes" and leave a
+performance problem without a home. This eval does not test that. The deletion stays because
+the spec argues it on principle (it leaks the verifier's rubric into labeling), not because the
+numbers asked for it. The N+1 row is still open, and it needs a change to the severity
+definitions, which is out of scope for this unit.
