@@ -97,7 +97,7 @@ $orders = Order::with('customer')->get();
 ```
 ````
 
-The block replaces the anchored line(s), so it holds the full replacement text. A fix that spans files or needs a design choice stays prose. The fence does not count toward the two sentences.
+The block replaces the anchored line(s), so it holds the full replacement text. Never write the replacement code into the sentence: when the patch is code it goes in the block and the sentence gives the reason. A fix that spans files or needs a design choice stays prose. The fence does not count toward the two sentences.
 
 Findings marked `refuted` or `not checked` never reach GitHub. If a finding was not verified, it is not posted; send it back through `/dtk:review-peer` step 8 instead of posting it with a hedge.
 
