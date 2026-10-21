@@ -1,0 +1,12 @@
+{
+  "pr": 101,
+  "repo": "acme/shop",
+  "commit_id": "d7617727444c290b255b08def8a1a097193f0be4",
+  "event": "COMMENT",
+  "body": "A couple of things to sort before merge, inline.",
+  "comments": [
+    { "path": "app/Http/Controllers/OrderExportController.php", "line": 12, "tag": "CR", "body": "CR: without a `status` param, `input('status')` is null, so this becomes `status IS NULL` and the export comes out empty. Could we wrap the filter in `->when($request->filled('status'), ...)` so it only applies when it's present?" },
+    { "path": "app/Http/Controllers/OrderExportController.php", "line": 18, "tag": "FFT", "body": "FFT: `$order->customer` triggers one query per order here. Might be worth eager loading it with `Order::with('customer')`." },
+    { "path": "app/Services/InvoiceMailer.php", "line": 15, "tag": "FFT", "body": "FFT: `send()` is synchronous, so the request waits on SMTP and a mail failure fails the request. Could `queue()` work here to move it off the request path?" }
+  ]
+}

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Read-only stand-in for `gh`, used ONLY by the review-publish payload eval.
+# It answers the read calls the skill makes (`pr view`, `pr diff`, `repo view`) from fixtures
+# and refuses everything else, `gh api` included. Every call is logged to $EVAL_GH_LOG
+# so the grader can see what was attempted.
+
+echo "gh $*" >> "${EVAL_GH_LOG:-/dev/null}"
+
+case "${1:-} ${2:-}" in
+  "pr view")
+    json=$(jq -nc \
+      --arg sha "$EVAL_HEAD_SHA" --arg base "$EVAL_BASE" --argjson n "${EVAL_PR:-0}" \
+      '{headRefOid: $sha, baseRefName: $base, headRefName: "feature/export", number: $n, title: "Add order export and invoice mailer", state: "OPEN", url: ("https://github.com/acme/shop/pull/" + ($n|tostring))}')
+    expr=""
+    shift 2
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --jq) expr="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    if [ -n "$expr" ]; then jq -r "$expr" <<<"$json"; else echo "$json"; fi
+    ;;
+  "pr diff")
+    cat "$EVAL_PR_DIFF"
+    ;;
+  "repo view")
+    expr=""
+    shift 2
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --jq) expr="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    json='{"nameWithOwner":"acme/shop","name":"shop","owner":{"login":"acme"}}'
+    if [ -n "$expr" ]; then jq -r "$expr" <<<"$json"; else echo "$json"; fi
+    ;;
+  *)
+    echo "gh: blocked, the review-publish eval is read-only (gh $*)" >&2
+    exit 1
+    ;;
+esac

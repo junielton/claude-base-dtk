@@ -1,0 +1,15 @@
+{
+  "pr": 101,
+  "repo": "acme/shop",
+  "commit_id": "d7617727444c290b255b08def8a1a097193f0be4",
+  "event": "APPROVE",
+  "body": "Approving, a few notes inline.",
+  "comments": [
+    {
+      "path": "resources/js/cart.js",
+      "line": 8,
+      "tag": "FFT",
+      "body": "FFT: A coupon larger than the cart pushes the total below zero. The checkout then shows a negative amount. I'd clamp it at 0."
+    }
+  ]
+}
