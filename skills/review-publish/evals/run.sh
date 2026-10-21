@@ -128,7 +128,7 @@ WRAP
     sed "s/\$ARGUMENTS/$pr/g" "$BODY_TPL" > "$body"
 
     prompt="Publish the review for PR #$pr, following the review-publish skill in your system prompt.
-This is a non-interactive run in a sandbox directory (repo acme/shop, which has no git remote here) that holds memories/reviews/PR-$pr/peer-review-1.md and bin/skill-scripts/. Step 0 is already done: SCRIPTS is bin/skill-scripts, so write that literal path in your commands (the sandbox refuses shell variables and command substitution). Do steps 1 to 5 only: build publish-1.json, do the voice pass, and run the dry run until it is clean. Stop there: no confirmation gate, no AskUserQuestion, no steps 6, 7 or 8. Nothing is ever posted. Finish with one line."
+This is a non-interactive run in a sandbox directory (repo acme/shop, which has no git remote here) that holds memories/reviews/PR-$pr/peer-review-1.md and bin/skill-scripts/. Step 0 is already done: SCRIPTS is bin/skill-scripts, so write that literal path in your commands (the sandbox refuses shell variables, command substitution and compound commands, so run one simple command per Bash call: no ;, &&, || or pipes). Do steps 1 to 5 only: build publish-1.json, do the voice pass, and run the dry run until it is clean. Stop there: no confirmation gate, no AskUserQuestion, no steps 6, 7 or 8. Nothing is ever posted. Finish with one line."
 
     # Guards 2-4: stub gh first on PATH, dead tokens, explicit allowlist, no MCP servers.
     (cd "$dir" && env -u CLAUDECODE -u CLAUDE_CODE_SSE_PORT -u GH_ENTERPRISE_TOKEN \
