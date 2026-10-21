@@ -16,7 +16,7 @@
     {
       "id": 2,
       "name": "n-plus-one-added-loop",
-      "expect": "blocking",
+      "expect": "non-blocking",
       "file": "OrderController",
       "keywords": "N\\+1|eager|\\bwith\\(|warehouse|loop",
       "scope": "heading"

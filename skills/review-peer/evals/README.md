@@ -15,7 +15,7 @@ finding in. Not whether it finds things: whether it **labels** them the way the 
 | # | Finding | Expected bucket |
 |---|---|---|
 | 1 | SQL injection in `UserController` (`DB::raw` on the query string) | 🔴 blocking |
-| 2 | N+1 on `warehouse` in the loop added to `OrderController::index` | 🔴 blocking |
+| 2 | N+1 on `warehouse` in the loop added to `OrderController::index` | 🟡 non-blocking (see Decision) |
 | 3 | `InvoiceController` re-implements `MoneyFormatter` | 🟡 non-blocking |
 | 4 | N+1 in `ReportBuilder` (predates the change) | absent |
 | 5 | "missing authorization in `show()`" (the route middleware covers it) | absent or 💬 |
@@ -75,21 +75,22 @@ Model: session default (not pinned). Fixture: the verifier fixture, unchanged.
 | Finding | Expected | run1 | run2 | run3 | run4 | run5 | Pass |
 |---|---|---|---|---|---|---|---|
 | SQL injection, `UserController` | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 | 5/5 |
-| N+1 in added loop, `OrderController::index` | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | **0/5** |
+| N+1 in added loop, `OrderController::index` | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 5/5 |
 | `MoneyFormatter` duplication | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 5/5 |
 | Pre-existing N+1, `ReportBuilder` | absent | absent | absent | absent | absent | absent | 5/5 |
 | Missing authorization in `show()` | absent / 💬 | absent | absent | absent | absent | absent | 5/5 |
 
-With the hint, the only labeling miss is the added-loop N+1: filed as 🟡 non-blocking in every
-run, where the spec expects 🔴. Every run also raised the same unlabeled 🔴 (invoice routes
-lack an ownership check, `routes/web.php`), which the fixture does not label.
+With the hint, every expectation holds. The added-loop N+1 was filed as 🟡 non-blocking in
+every run; the spec's first version expected 🔴 for it (see Decision below). Every run also
+raised the same unlabeled 🔴 (invoice routes lack an ownership check, `routes/web.php`), which
+the fixture does not label.
 
 ### After — hint deleted (`SKILL.md` at `6753220`), 5 runs
 
 | Finding | Expected | run1 | run2 | run3 | run4 | run5 | Pass |
 |---|---|---|---|---|---|---|---|
 | SQL injection, `UserController` | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 | 🔴 | 5/5 |
-| N+1 in added loop, `OrderController::index` | 🔴 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | **0/5** |
+| N+1 in added loop, `OrderController::index` | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 5/5 |
 | `MoneyFormatter` duplication | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 🟡 | 5/5 |
 | Pre-existing N+1, `ReportBuilder` | absent | absent | absent | absent | absent | absent | 5/5 |
 | Missing authorization in `show()` | absent / 💬 | absent | absent | absent | absent | absent | 5/5 |
@@ -97,14 +98,27 @@ lack an ownership check, `routes/web.php`), which the fixture does not label.
 ### Did the deletion move anything?
 
 No. With the hint and without it, every expectation produced the same bucket in all 5 runs:
-SQL injection 🔴, the duplication 🟡, the pre-existing N+1 and the `show()` authorization
-finding absent. The added-loop N+1 went to 🟡 in 10 of 10 runs, 5 with the hint and 5 without.
-At this sample size (5 + 5, one model, one fixture) there is no measurable effect, in either
-direction.
+SQL injection 🔴, the added-loop N+1 and the duplication 🟡, the pre-existing N+1 and the
+`show()` authorization finding absent. At this sample size (5 + 5, one model, one fixture)
+there is no measurable effect, in either direction. The deletion stays because the spec argues
+it on principle (it leaks the verifier's rubric into labeling), not because the numbers asked
+for it.
 
-So the hint is not what keeps the N+1 out of 🔴. The likelier cause is the skill's own
-Severity Definitions, which define 🔴 as "bugs, security issues, breaking changes" and leave a
-performance problem without a home. This eval does not test that. The deletion stays because
-the spec argues it on principle (it leaks the verifier's rubric into labeling), not because the
-numbers asked for it. The N+1 row is still open, and it needs a change to the severity
-definitions, which is out of scope for this unit.
+### Decision — the N+1 expectation (2026-10-20)
+
+The first version of this eval expected 🔴 for the added-loop N+1, and the row failed 10 of 10
+runs with and without the hint: the reviewer files it as 🟡 every time. The 🔴 came from the
+verifier eval (`agents/evals/dtk-review-verifier`), where case 1 is *submitted* as `blocking`
+to check that the verifier keeps a concrete finding; that eval never asserted 🔴 is the right
+label. Under the skill's Severity Definitions, 🔴 is a bug, a security issue or a breaking
+change, and an N+1 returns the correct result, so 🟡 is the label the definitions actually
+give it. That is also what the 100-PR case study (`docs/specs/2026-10-20-review-case-study.md`
+§8) found: a CR is a demonstrable wrong result, and the tech lead files performance notes as
+FFT.
+
+The operator changed the expectation to 🟡 on 2026-10-20 and the spec (§U2 AC-2) was amended
+with this rationale. The tables above are the original runs, unchanged; only the Expected
+column and the Pass counts follow the new expectation. The Severity Definitions were not
+edited. Confirming run after the change, `./run.sh --runs 1` (hint absent, session default
+model): `sql-injection-user-search 1/1 · n-plus-one-added-loop 1/1 · money-formatter-duplication
+1/1 · pre-existing-n-plus-one 1/1 · missing-authorization-in-show 1/1`, exit 0.
