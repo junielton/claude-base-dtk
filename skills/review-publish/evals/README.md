@@ -111,14 +111,67 @@ number that matters: **4/15** (c 3/3, e 1/3). What fails, and why:
   banned sections out and anchors correctly. Those are regression guards for the new skill, not
   things the change was meant to move.
 
-### Unit tests at this commit
+### Baseline, second sample (final harness, `./run.sh --baseline`)
 
-`tests/run-tests.sh`: **2 / 36** pass. The two that pass are the clean dry run and the clean real post,
-which already worked; the other 34 need `tone-lint.sh` and its wiring in `post-review.sh`.
+Re-run once the lint existed and the eval prompt asked for one simple command per Bash call, so
+it is directly comparable to the new skill below: **3 / 15**.
+
+| Case | pass | verdict | lint | suggestion |
+|---|---|---|---|---|
+| a 1 CR + 2 FFT | 0/3 | 0/3 | 0/3 | 0/3 |
+| b FFT + Q | 0/3 | 3/3 | 0/3 | - |
+| c zero findings | 3/3 | 3/3 | 3/3 | - |
+| d banned sections | 0/3 | 3/3 | 0/3 | - |
+| e not checked | 0/3 | 3/3 | 0/3 | - |
+
+`payload`, `anchors`, `no-leak` and `dry-run` are 15/15 again.
 
 ### New skill
 
-_Recorded in the last commit of this unit._
+| Sample | Skill | Result |
+|---|---|---|
+| 1 | commit `1a17c52` | **13 / 15** |
+| 2 | final (`7d73928`) | **15 / 15** |
+
+Sample 2, per check (every column 3/3 on every case, `suggestion` only applies to case a):
+
+| Case | pass | payload | verdict | lint | anchors | no-leak | suggestion | dry-run |
+|---|---|---|---|---|---|---|---|---|
+| a 1 CR + 2 FFT | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 |
+| b FFT + Q | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | - | 3/3 |
+| c zero findings | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | - | 3/3 |
+| d banned sections | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | - | 3/3 |
+| e not checked | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | 3/3 | - | 3/3 |
+
+Sample 1 failed twice, for two different reasons:
+
+- a-1, a real skill miss: the CR wrote the replacement code into the sentence instead of a
+  ` ```suggestion ` block. `SKILL.md` step 3 now says the code goes in the block and the sentence
+  gives the reason (`7d73928`).
+- e-3, a harness miss: the sandbox refused a compound `cat ...; ls ...` and the model stopped
+  before the dry run. Not a skill defect; the eval prompt now asks for one simple command per
+  Bash call (`9619b84`).
+
+### Baseline vs new
+
+| | baseline | new |
+|---|---|---|
+| runs passing every check | 3 / 15 (sample 1, re-graded: 4 / 15) | 15 / 15 (sample 1: 13 / 15) |
+| CR posted as `REQUEST_CHANGES` (case a) | 0 / 3 | 3 / 3 |
+| payload clears `tone-lint.sh` | 3 / 15 | 15 / 15 |
+| CR carries a `suggestion` block | 0 / 3 | 3 / 3 |
+| anchors, no leak, dry run | 15 / 15 | 15 / 15 |
+
+Read this with two limits in mind. The `a-1` miss was fixed in the skill after it showed up on
+these fixtures, so 15 / 15 is partly tuned to them; a fresh PR is the real test, and
+`bin/skill-scripts/review/outcomes.py` (U3) is the production metric. And 3 runs per case catch a
+rule the skill ignores, not a 1-in-10 slip.
+
+### Unit tests
+
+`tests/run-tests.sh`: **2 / 36** at the baseline commit (the two that passed already worked: a
+clean dry run and a clean real post), **36 / 36** after `tone-lint.sh` and its wiring in
+`post-review.sh`.
 
 ## What this does not cover
 
