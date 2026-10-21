@@ -1,6 +1,8 @@
 #!/bin/bash
 #
 # Validates and posts a review payload built by /dtk:review-publish.
+# Runs tone-lint.sh first (dry run and real post alike) and refuses a payload that hedges,
+# lacks a tag, runs long, or posts a CR as anything but REQUEST_CHANGES.
 # Checks the head SHA (full, current), and that every inline line is an added line
 # in the PR diff, because GitHub rejects the whole review with a 422 otherwise.
 #
@@ -35,6 +37,13 @@ case "$EVENT" in
   APPROVE|COMMENT|REQUEST_CHANGES) ;;
   *) echo "event must be APPROVE, COMMENT or REQUEST_CHANGES, got: $EVENT" >&2; exit 1 ;;
 esac
+
+LINT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/tone-lint.sh"
+[[ -f "$LINT" ]] || { echo "tone-lint.sh not found next to post-review.sh: $LINT" >&2; exit 1; }
+if ! bash "$LINT" --payload "$PAYLOAD"; then
+  echo "refused by tone-lint (rule named above): fix the payload and run again. Nothing was posted." >&2
+  exit 1
+fi
 
 HEAD=$(gh pr view "$PR" --repo "$REPO" --json headRefOid --jq .headRefOid)
 
