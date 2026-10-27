@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>screen: SCREEN_ID</title>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../mockup.css">
+<style>
+  /* Styles that belong to THIS screen only. Every value is var(--token) or a
+     justified inline comment. Shared anatomy goes in ../mockup.css. */
+  [data-dsqa="SCREEN_ID"][data-state="default"] .only-in-other-state { display: none; }
+</style>
+</head>
+<!-- Declare every state this screen has. The first one is the default. -->
+<body data-states="default">
+<div data-dsqa="SCREEN_ID">
+  <!-- The screen. Deterministic sample data. data-goto on anything that navigates: -->
+  <!-- <button type="button" data-goto="other-screen">Continuar</button> -->
+  <!-- <button type="button" data-goto="SCREEN_ID?state=confirmar">Excluir</button> -->
+</div>
+<!-- Parts used by this screen, if any, BEFORE mockup.js: -->
+<!-- <script src="../parts/tabs.js"></script> -->
+<script src="../mockup.js"></script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — TITLE</title>
+<style>
+  :root { --ix-bg:#f6f6f7; --ix-fg:#1b1b1f; --ix-muted:#6b6b76; --ix-line:#dcdce2; --ix-card:#fff; --ix-accent:#2f5bea; --ix-draft:#b7791f; --ix-ok:#2f855a; }
+  @media (prefers-color-scheme: dark) { :root { --ix-bg:#121216; --ix-fg:#ececf1; --ix-muted:#9a9aa6; --ix-line:#2b2b33; --ix-card:#1b1b21; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.5 system-ui, sans-serif; color:var(--ix-fg); background:var(--ix-bg); }
+  header { padding: 20px 24px; border-bottom: 1px solid var(--ix-line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size: 20px; margin: 0; }
+  .status { font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; color:#fff; background:var(--ix-draft); text-transform:uppercase; letter-spacing:.04em; }
+  .status[data-status="approved"] { background:var(--ix-ok); }
+  nav.toc { font-size:13px; color:var(--ix-muted); display:flex; gap:14px; flex-wrap:wrap; margin-left:auto; }
+  nav.toc a { color:inherit; }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+  section { margin-bottom: 48px; }
+  section > h2 { font-size: 17px; margin: 0 0 12px; }
+  .prose { max-width: 72ch; color: var(--ix-fg); }
+  .prose p { margin: 0 0 10px; }
+  /* one card per screen */
+  .screen { background:var(--ix-card); border:1px solid var(--ix-line); border-radius:10px; padding:16px; margin-bottom:24px; }
+  .screen .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .screen h3 { margin:0; font-size:15px; }
+  .screen h3 code { font-size:12px; color:var(--ix-muted); font-weight:400; margin-left:8px; }
+  .screen .notes { font-size:13px; color:var(--ix-muted); margin:0 0 12px; max-width:80ch; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chips button { font:inherit; font-size:12px; padding:3px 10px; border-radius:999px; border:1px solid var(--ix-line); background:transparent; color:var(--ix-fg); cursor:pointer; }
+  .chips button[aria-pressed="true"] { background:var(--ix-accent); border-color:var(--ix-accent); color:#fff; }
+  .open { margin-left:auto; font-size:13px; }
+  .viewport { overflow:hidden; border:1px solid var(--ix-line); border-radius:6px; background:#fff; }
+  .viewport iframe { display:block; border:0; transform-origin: top left; }
+  .screen .approval { font-size:12px; margin-top:8px; color:var(--ix-muted); }
+  /* flows */
+  .flow { background:var(--ix-card); border:1px solid var(--ix-line); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .flow ol { display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:0; margin:8px 0 0; list-style:none; counter-reset: step; }
+  .flow li { counter-increment: step; font-size:13px; }
+  .flow li::before { content: counter(step) ". "; color:var(--ix-muted); }
+  .flow li + li::before { content: "→ " counter(step) ". "; }
+  .flow li small { color:var(--ix-muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TITLE</h1>
+  <!-- data-status MUST mirror mockup.json "status"; check-mockup.mjs enforces it -->
+  <span class="status" data-status="draft">draft</span>
+  <nav class="toc"><a href="#contexto">Contexto</a><a href="#telas">Telas</a><a href="#fluxos">Fluxos</a><a href="parts/index.html">Partes</a></nav>
+</header>
+<main>
+
+<section id="contexto">
+  <h2>Contexto e decisões</h2>
+  <div class="prose">
+    <p>Why this mockup exists, what problem it solves, the decisions already taken. Screenshots of the
+    CURRENT state go in ./assets and are embedded here as images, never rebuilt as markup.</p>
+  </div>
+</section>
+
+<section id="telas">
+  <h2>Telas</h2>
+  <!-- One <article class="screen"> per screen, in the order a reader should meet them.
+       data-screen = the id in mockup.json; data-states = the same list as the screen's <body>. -->
+  <article class="screen" data-screen="SCREEN_ID" data-states="default">
+    <div class="bar">
+      <h3>Human title <code>SCREEN_ID</code></h3>
+      <div class="chips" data-role="viewports"></div>
+      <div class="chips" data-role="states"></div>
+      <a class="open" href="screens/SCREEN_ID.html" target="_blank">abrir sozinha ↗</a>
+    </div>
+    <p class="notes">One or two lines: what to look at, what changed, what is deliberately out of scope.</p>
+    <div class="viewport"><iframe loading="lazy" title="SCREEN_ID"></iframe></div>
+    <p class="approval">Aprovação: <strong>draft</strong></p>
+  </article>
+</section>
+
+<section id="fluxos">
+  <h2>Fluxos</h2>
+  <!-- One per flow in mockup.json. Each step links to the screen alone; "percorrer" opens step 1
+       in a tab where every data-goto is live, so the reader walks the flow like the real app. -->
+  <article class="flow" data-flow="FLOW_ID">
+    <h3>Human title of the journey — <a href="screens/SCREEN_ID.html" target="_blank">percorrer ↗</a></h3>
+    <ol>
+      <li><a href="screens/SCREEN_ID.html?state=default" target="_blank">SCREEN_ID</a> <small>via "what the user clicks"</small></li>
+    </ol>
+  </article>
+</section>
+
+</main>
+<script>
+/* index runtime: sizes each frame to the chosen viewport, swaps ?state=, listens for
+   mockup:size from the screens. Do not add behaviour here; screens own their behaviour. */
+(() => {
+  const VIEWPORTS = [390, 1280]; // MUST mirror mockup.json "viewports"
+  const frames = new Map(); // iframe -> {w, h}
+  const fit = (card) => {
+    const vp = card.querySelector('.viewport'), ifr = vp.querySelector('iframe'), f = frames.get(ifr);
+    const s = Math.min(1, vp.parentElement.clientWidth / f.w);
+    ifr.style.width = f.w + 'px'; ifr.style.height = f.h + 'px'; ifr.style.transform = `scale(${s})`;
+    vp.style.height = Math.ceil(f.h * s) + 'px'; vp.style.width = Math.ceil(f.w * s) + 'px';
+  };
+  const load = (card) => {
+    const ifr = card.querySelector('iframe');
+    const state = card.querySelector('[data-role="states"] [aria-pressed="true"]')?.dataset.state || card.dataset.states.split(/\s+/)[0];
+    ifr.src = `screens/${card.dataset.screen}.html?state=${encodeURIComponent(state)}`;
+  };
+  document.querySelectorAll('.screen').forEach((card) => {
+    const ifr = card.querySelector('iframe');
+    frames.set(ifr, { w: VIEWPORTS[0], h: 600 });
+    const vps = card.querySelector('[data-role="viewports"]');
+    VIEWPORTS.forEach((w, i) => {
+      const b = document.createElement('button'); b.textContent = w + 'px'; b.dataset.w = w; b.setAttribute('aria-pressed', String(i === 0));
+      b.onclick = () => { vps.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); frames.get(ifr).w = w; fit(card); };
+      vps.append(b);
+    });
+    const sts = card.querySelector('[data-role="states"]');
+    card.dataset.states.split(/\s+/).filter(Boolean).forEach((st, i) => {
+      const b = document.createElement('button'); b.textContent = st; b.dataset.state = st; b.setAttribute('aria-pressed', String(i === 0));
+      b.onclick = () => { sts.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); load(card); };
+      sts.append(b);
+    });
+    new IntersectionObserver((es, io) => es.forEach((e) => { if (e.isIntersecting) { io.disconnect(); load(card); } }), { rootMargin: '600px' }).observe(card);
+    fit(card);
+  });
+  addEventListener('message', (e) => {
+    const m = e.data; if (!m || m.type !== 'mockup:size') return;
+    for (const [ifr, f] of frames) if (ifr.contentWindow === e.source) { f.h = Math.max(320, m.height); fit(ifr.closest('.screen')); }
+  });
+  addEventListener('resize', () => document.querySelectorAll('.screen').forEach(fit));
+})();
+</script>
+</body>
+</html>

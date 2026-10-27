@@ -1,0 +1,29 @@
+{
+  "status": "draft",
+  "approvedAt": null,
+  "project": "PROJECT",
+  "card": null,
+  "tokensFrom": "path/to/project/tokens.css",
+  "viewports": [390, 1280],
+  "targets": ["path/to/ComponentA.vue"],
+  "screens": [
+    {
+      "id": "SCREEN_ID",
+      "title": "Human title",
+      "status": "draft",
+      "states": ["default"],
+      "targets": ["path/to/ComponentA.vue"],
+      "notes": "What this screen is for, in one line."
+    }
+  ],
+  "parts": [],
+  "flows": [
+    {
+      "id": "FLOW_ID",
+      "title": "Human title of the journey",
+      "steps": [
+        { "screen": "SCREEN_ID", "state": "default", "via": "what the user clicks to get to the next step" }
+      ]
+    }
+  ]
+}

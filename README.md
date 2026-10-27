@@ -82,6 +82,16 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 | **dsqa** | `/dtk:dsqa` | Compares a Figma design against a running browser implementation — reports every deviation with exact values and fixes |
 | **implement-design** | `/dtk:implement-design` | Full workflow from Figma design to implemented component — handles context gathering, planning, execution, and DSQA verification |
 
+### HTML mockups (no Figma)
+
+A visual contract authored as HTML inside the project: `docs/design/<slug>/` with `mockup.json` (status per screen), one `screens/<id>.html` per screen (states via `?state=`, flows via `data-goto` navigating between files), optional `parts/`, the project's tokens copied verbatim, and a thin `index.html` that only embeds. `skills/create-mockup/scripts/check-mockup.mjs` is the mechanical gate the three skills share.
+
+| Skill | Command | Description |
+|-------|---------|-------------|
+| **create-mockup** | `/dtk:create-mockup` | Authors the mockup screen by screen — inventory first, tokens verbatim, clickable flows, checker before every presentation, approval per screen |
+| **implement-mockup** | `/dtk:implement-mockup` | Builds the approved screens 1:1 in the real app (parts first, states reachable, routes wired) and ends in a mandatory mockup-qa pass |
+| **mockup-qa** | `/dtk:mockup-qa` | Verifies the app against the approved screens, state by state and viewport by viewport — strict computed styles, anatomy, pixel diff, flows walked by clicking |
+
 ## Scripts
 
 Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by domain. Scripts run from the installed plugin — no project setup required.
@@ -90,7 +100,7 @@ Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by 
 |-----------|---------|---------|
 | `review/` | `project-context.sh`, `memory-manager.sh`, `lessons-loader.sh` | review, review-local, review-peer |
 | `lessons/` | `create-lesson.sh` | learn-from-review |
-| `dsqa/` | `capture-and-compare.mjs`, `deep-inspect.mjs`, `check-deps.sh`, `utils/color-utils.mjs` | dsqa |
+| `dsqa/` | `capture-and-compare.mjs`, `deep-inspect.mjs`, `check-deps.sh`, `utils/color-utils.mjs` | dsqa, mockup-qa |
 | `adr/` | `next-number.sh` | adr |
 | `commit/` | `gather-changes.sh` | smart-commit |
 | `shared/` | `figma-url-parser.sh` | dsqa, implement-design |
