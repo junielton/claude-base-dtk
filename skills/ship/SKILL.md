@@ -42,10 +42,23 @@ auto-detected. It works in any repo with `git` + `gh`.
      exists, or none of its entries match, **don't invent a reviewer** — report
      "no human reviewer auto-assigned (CODEOWNERS doesn't cover these paths)"
      and continue. Always honor an explicit reviewer override from the user.
-   - **Copilot (optional):** try `gh pr edit --add-reviewer Copilot`. Many repos
-     don't have Copilot code review enabled — if the request fails, treat Copilot
-     as **not available here**, note it, and move on. Don't stop the pipeline
-     over it, and don't wait for a review that will never come (see step 5).
+   - **Copilot (optional):** request it via REST, with the `[bot]` suffix:
+     ```
+     gh api repos/{owner}/{repo}/pulls/{number}/requested_reviewers \
+       -f "reviewers[]=copilot-pull-request-reviewer[bot]"
+     ```
+     Never `gh pr edit --add-reviewer Copilot` — that goes through GraphQL, which
+     fails to resolve the Copilot bot login ("Could not resolve user") even in
+     repos where Copilot review works fine. The REST call is idempotent and
+     doubles as the availability check, so no separate detection step is needed:
+     where Copilot code review is auto-enabled it has usually already attached
+     itself (visible in `gh pr view --json reviews` as author
+     `copilot-pull-request-reviewer`, never in `reviewRequests`) and the call is a
+     silent no-op; where it isn't, this call is what actually requests it. Only a
+     real REST failure (422 "Reviews may only be requested from collaborators")
+     means Copilot is genuinely unavailable here — that, and only that, is worth
+     reporting as "Copilot not available". Don't stop the pipeline over it, and
+     don't wait for a review that will never come (see step 5).
 5. **Monitor CI + any assigned reviews in one loop** → poll until they resolve
    (don't block the user; check periodically via `/loop` or spaced checks):
    - **CI**: `gh pr checks <PR>` (or `gh pr view --json statusCheckRollup`).
