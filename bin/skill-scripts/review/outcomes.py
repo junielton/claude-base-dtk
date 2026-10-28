@@ -63,6 +63,22 @@ AGREED_RE = re.compile(
     re.IGNORECASE,
 )
 KEEP_RE = re.compile(r"\bkeep\b", re.IGNORECASE)
+# marked-wrong: the PR author's reply says the comment is wrong. Three explicit signals only:
+# a leading `wrong:` tag, a thumbs-down, or "not an issue". Reactions are not fetched, so a thumbs-down reaction is not counted (only one typed in a reply).
+MARKED_WRONG_RE = re.compile(r"^\W*wrong\s*:|\U0001f44e|not an issue", re.IGNORECASE | re.MULTILINE)
+
+# The seven metrics of docs/review-outcomes.md "Definitions", in table order. These are the
+# `--json` key names under `metrics`. `refuted_by_verifier` is always null: it is not measured yet.
+METRIC_KEYS = (
+    "posted",
+    "refuted_by_verifier",
+    "accepted",
+    "resolved_by_merge",
+    "marked_wrong",
+    "hedges",
+    "cr_as_cr",
+)
+NOT_MEASURED = ("refuted_by_verifier",)
 
 PR_LIST_QUERY = """
 query($owner: String!, $name: String!, $first: Int!, $after: String) {
@@ -177,6 +193,7 @@ def analyze(prs):
     verdicts = defaultdict(Counter)  # reviewer -> review state -> n
     cr_verdict = defaultdict(Counter)  # reviewer -> review state of each CR comment
     outcomes = defaultdict(lambda: defaultdict(Counter))  # reviewer -> tag -> outcome -> n
+    tagged = defaultdict(lambda: defaultdict(Counter))  # reviewer -> tag -> metric -> n
 
     for pr in prs:
         author = login(pr)
@@ -200,11 +217,14 @@ def analyze(prs):
             tag = tag_of(body)
             comments[reviewer][tag] += 1
             hedges[reviewer] += bool(HEDGE_RE.search(body))
+            tagged[reviewer][tag]["posted"] += 1
+            tagged[reviewer][tag]["hedges"] += bool(HEDGE_RE.search(body))
             optional[reviewer] += bool(OPTIONAL_RE.search(body))
             suggestions[reviewer] += bool(SUGGESTION_RE.search(body))
             if tag == "CR":
                 review = first.get("pullRequestReview") or {}
                 cr_verdict[reviewer][review.get("state", "NONE")] += 1
+                tagged[reviewer][tag]["cr_as_cr"] += review.get("state") == "CHANGES_REQUESTED"
 
             replies = [c["body"] or "" for c in nodes[1:] if login(c) == author]
             if replies:
@@ -214,8 +234,12 @@ def analyze(prs):
             else:
                 outcome = "no_reply"
             outcomes[reviewer][tag][outcome] += 1
+            tagged[reviewer][tag]["marked_wrong"] += any(MARKED_WRONG_RE.search(t) for t in replies)
+            tagged[reviewer][tag]["accepted"] += outcome == "accepted"
+            tagged[reviewer][tag]["resolved_by_merge"] += outcome == "no_reply" and pr["state"] == "MERGED"
 
     return {
+        "tagged": tagged,
         "comments": comments,
         "hedges": hedges,
         "optional": optional,
@@ -272,9 +296,19 @@ def render(result, reviewers):
     return "\n".join(out)
 
 
+def metrics_of(counts):
+    """The seven metrics of one reviewer-tag cell, in METRIC_KEYS order; unmeasured ones are None."""
+    return {key: None if key in NOT_MEASURED else counts[key] for key in METRIC_KEYS}
+
+
 def to_jsonable(result, reviewers):
-    return {
-        reviewer: {
+    out = {}
+    for reviewer in reviewers:
+        by_tag = {tag: metrics_of(result["tagged"][reviewer][tag]) for tag in TAGS}
+        total = Counter()
+        for tag in TAGS:
+            total.update(result["tagged"][reviewer][tag])
+        out[reviewer] = {
             "comments": dict(result["comments"][reviewer]),
             "hedges": result["hedges"][reviewer],
             "optional": result["optional"][reviewer],
@@ -282,9 +316,13 @@ def to_jsonable(result, reviewers):
             "cr_verdicts": dict(result["cr_verdict"][reviewer]),
             "verdicts": dict(result["verdicts"][reviewer]),
             "outcomes": {t: dict(c) for t, c in result["outcomes"][reviewer].items()},
+            "metrics": {"total": metrics_of(total), "by_tag": by_tag, "not_measured": list(NOT_MEASURED)},
         }
-        for reviewer in reviewers
-    }
+    return out
+
+
+def render_json(result, reviewers):
+    return json.dumps(to_jsonable(result, reviewers), indent=2)
 
 
 def self_test():
@@ -406,7 +444,7 @@ def main():
             sys.exit(f"no inline comments by {args.reviewer} in the {len(prs)} PRs read")
 
     if args.json:
-        print(json.dumps(to_jsonable(result, reviewers), indent=2, sort_keys=True))
+        print(render_json(result, reviewers))
     else:
         print(f"# {args.repo}: {len(prs)} PRs (#{min(numbers)}..#{max(numbers)})\n" if numbers else f"# {args.repo}: no PRs\n")
         print(render(result, reviewers))
