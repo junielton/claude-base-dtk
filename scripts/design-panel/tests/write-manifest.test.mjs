@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, '..', 'write-manifest.mjs');
 const fixtures = join(here, 'fixtures');
-const schemaPath = join(here, '..', '..', '..', '..', 'templates', 'design-panel', 'design', 'manifests', 'component-manifest.schema.json');
+const schemaPath = join(here, '..', '..', '..', 'templates', 'design-panel', 'design', 'manifests', 'component-manifest.schema.json');
 
 function run(args, opts = {}) {
   return execFileSync('node', [script, ...args], { encoding: 'utf8', ...opts });

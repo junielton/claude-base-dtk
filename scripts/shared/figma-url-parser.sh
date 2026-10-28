@@ -1,6 +1,6 @@
 #!/bin/bash
 # Parses a Figma URL and extracts fileKey and nodeId.
-# Usage: bash bin/skill-scripts/shared/figma-url-parser.sh "<figma-url>"
+# Usage: bash scripts/shared/figma-url-parser.sh "<figma-url>"
 #
 # Output (JSON): {"fileKey": "abc123", "nodeId": "1:234"}
 #

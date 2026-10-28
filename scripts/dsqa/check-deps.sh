@@ -1,6 +1,6 @@
 #!/bin/bash
 # Checks (and optionally installs) the DSQA dependencies: puppeteer, pngjs, pixelmatch.
-# Usage: bash bin/skill-scripts/dsqa/check-deps.sh [--install]
+# Usage: bash scripts/dsqa/check-deps.sh [--install]
 #
 # The deps live in a plugin-owned cache, never in the user's project:
 #   ${XDG_CACHE_HOME:-$HOME/.cache}/dtk        (one package.json, pinned versions)

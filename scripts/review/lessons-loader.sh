@@ -3,10 +3,10 @@
 # Loads lessons from docs/lessons/ for use by review skills.
 #
 # Usage:
-#   bash bin/skill-scripts/review/lessons-loader.sh --json      # Index with paths and categories
-#   bash bin/skill-scripts/review/lessons-loader.sh --content    # Full content of all lessons
-#   bash bin/skill-scripts/review/lessons-loader.sh --category security  # Filter by category
-#   bash bin/skill-scripts/review/lessons-loader.sh --content --include-candidates  # Also candidates
+#   bash scripts/review/lessons-loader.sh --json      # Index with paths and categories
+#   bash scripts/review/lessons-loader.sh --content    # Full content of all lessons
+#   bash scripts/review/lessons-loader.sh --category security  # Filter by category
+#   bash scripts/review/lessons-loader.sh --content --include-candidates  # Also candidates
 #
 # Lifecycle: a lesson's frontmatter `status:` is candidate | active | retired.
 # Only `active` lessons load by default; --include-candidates adds `candidate`;

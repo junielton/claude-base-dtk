@@ -1,6 +1,6 @@
 #!/bin/bash
 # Returns the next ADR number in NNN format.
-# Usage: bash bin/skill-scripts/adr/next-number.sh
+# Usage: bash scripts/adr/next-number.sh
 #
 # Reads docs/adrs/ADR-*.md to find the highest number, then increments.
 # If no ADRs exist, returns 001.

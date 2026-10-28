@@ -4,7 +4,7 @@
 # Outputs JSON with git_owner, git_repo, project_root, current_branch, and more.
 #
 # Usage:
-#   bash bin/skill-scripts/review/project-context.sh [--base-branch <branch>]
+#   bash scripts/review/project-context.sh [--base-branch <branch>]
 
 set -euo pipefail
 

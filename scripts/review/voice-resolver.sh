@@ -5,7 +5,7 @@
 # Outputs JSON: voice_skill (invoke name or ""), source (setting|marker|heuristic|none), candidates[].
 #
 # Usage:
-#   bash bin/skill-scripts/review/voice-resolver.sh
+#   bash scripts/review/voice-resolver.sh
 
 set -euo pipefail
 

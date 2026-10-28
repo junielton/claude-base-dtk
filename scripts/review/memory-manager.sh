@@ -3,10 +3,10 @@
 # Manages persistent review state for review skills.
 #
 # Usage:
-#   bash bin/skill-scripts/review/memory-manager.sh init <identifier>
-#   bash bin/skill-scripts/review/memory-manager.sh next-number <identifier> <prefix>
-#   bash bin/skill-scripts/review/memory-manager.sh save-state <identifier>   (reads stdin)
-#   bash bin/skill-scripts/review/memory-manager.sh template <identifier> <type>
+#   bash scripts/review/memory-manager.sh init <identifier>
+#   bash scripts/review/memory-manager.sh next-number <identifier> <prefix>
+#   bash scripts/review/memory-manager.sh save-state <identifier>   (reads stdin)
+#   bash scripts/review/memory-manager.sh template <identifier> <type>
 #
 # <identifier> is either "PR-NNNN" or a branch name.
 # <prefix> is "review" or "peer-review".

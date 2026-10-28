@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const MARKER = '// dtk:design-system routes';
 const here = dirname(fileURLToPath(import.meta.url));
-const templateRoot = join(here, '..', '..', '..', 'templates', 'design-panel');
+const templateRoot = join(here, '..', '..', 'templates', 'design-panel');
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
