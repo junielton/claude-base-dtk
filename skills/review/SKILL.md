@@ -32,103 +32,23 @@ Use the output path as `$SCRIPTS` for all script commands below.
 
 ## Workflow
 
-### 1. Gather Project Context
+Read `${CLAUDE_SKILL_DIR}/references/workflow.md` now, before step 1. Steps 1–8 and 10 run its sections by name (bold), with: `<memory-key>` = `PR-$ARGUMENTS`, `<memory-type>` = `review`, `<report-prefix>` = `review`, `<scope>` = `PR #$ARGUMENTS`.
 
-```bash
-bash $SCRIPTS/review/project-context.sh
-```
+### 1–7. Shared steps
 
-Extract `git_owner`, `git_repo`, and `project_root` from the JSON output. Use these values explicitly in ALL GitHub MCP calls.
+Run these sections of the workflow reference, in this order:
 
-### 2. Load Mandatory References
-
-- Read `CLAUDE.md` — project conventions and architecture
-- Read `docs/conventions.md` — project-specific conventions (if exists)
-- Read `docs/adrs/index.md` — architectural decisions that may apply
-- Load all lessons:
-
-```bash
-bash $SCRIPTS/review/lessons-loader.sh --content
-```
-
-From the lessons, identify which are relevant to the PR's changed files (by category) and use them as mandatory checkpoints.
-
-### 3. Collect Data (GitHub MCP)
-
-1. Fetch the **full diff** of PR #$ARGUMENTS from `{git_owner}/{git_repo}`
-2. Collect **all review comments**, grouped by author
-3. Identify which files/lines each comment references
-
-### 4. Analyze (execute BEFORE generating any output)
-
-**Pass 1 — Map Changes:** List ALL changed files and their added lines (`+` only).
-
-**Pass 2 — Understand Context:** For each changed block: what class/method, what it's trying to accomplish.
-
-**Pass 3 — Check Against Lessons Learned:** For each change, verify if any lesson applies. **Reference the specific file path**:
-Example: "Violates `docs/lessons/security/001-sql-injection-db-raw.md` — using DB::raw with interpolation"
-
-**Pass 4 — General Analysis:** Evaluate each `+` line:
-- **Logical correctness**: does the code do what it should?
-- **Project standards**: follows CLAUDE.md conventions?
-- **Security**: injection, mass assignment, auth gaps, data exposure
-- **Performance**: N+1, missing eager loading, missing cache
-- **Testability**: coverage exists or needed?
-- **Side effects**: could it break something?
-
-### 5. Evaluate Review Comments
-
-Priority: @human (tech lead) → other humans → Copilot/AIs (only if relevant).
-
-For each comment: locate code, evaluate as valid / partially valid / not applicable, justify.
-
-### 6. Memory — Load (execute AFTER analysis, BEFORE generating output)
-
-**IMPORTANT: Do NOT read memory before completing the analysis. Prevents bias.**
-
-```bash
-bash $SCRIPTS/review/memory-manager.sh init "PR-$ARGUMENTS"
-```
-
-- If `is_first_review` is true → skip reconciliation
-- If false → read state and reconcile
-
-### 7. Memory — Reconcile (only if review-state.md existed)
-
-- Matches **Resolved Item** → verify fix still in place
-- Matches **Decision** → respect it, do NOT re-raise
-- Matches **Open Item** → mark "still pending"
-- Not in state → mark "new in this review"
+1. **Gather Project Context**
+2. **Load Mandatory References** — from the lessons, identify which are relevant to the PR's changed files (by category) and use them as mandatory checkpoints
+3. **Collect PR Data** for PR #$ARGUMENTS
+4. **Analyze** (execute BEFORE generating any output), applying the **Diff Reading Rules**
+5. **Evaluate Existing Comments**
+6. **Memory — Load** (execute AFTER analysis, BEFORE generating output)
+7. **Memory — Reconcile** (only if review-state.md existed)
 
 ### 8. Verify Findings (kill false positives)
 
-**Execute AFTER reconciliation, BEFORE generating output.** Applies to findings from **your own analysis** (step 4) — not to the incoming review comments from step 5, which are judged by their own valid / partially valid / not applicable rubric.
-
-For each candidate finding, dispatch the `dtk-review-verifier` subagent (Task tool, `subagent_type: dtk-review-verifier`) with:
-
-```
-severity:  blocking | non-blocking | question
-location:  file:line
-claim:     <the one-line assertion you want to turn into a task>
-scope:     PR #$ARGUMENTS
-empirical: off
-
---- reasoning (read only after recording blind_verdict) ---
-<why you believe it>
-```
-
-Keep `reasoning` last, under that heading: the verifier forms a blind verdict before it reads it. `empirical: allowed` (only when the user asked for it) lets a `blocking` finding run one allowlisted read-only command or filtered test; default `off`.
-
-Map your buckets to the severities the verifier expects: 🔴 Critical → `blocking`, 🟡 Important → `non-blocking`, 🟢 Minor/Suggestion → `non-blocking`.
-
-Rules:
-
-- **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
-- **Drop every finding whose `final_verdict` is `refuted`.** Do not re-argue the verdict.
-- If it returns `suggested-severity`, move the finding to that bucket before writing it as a task.
-- You are the orchestrator; the verifier cannot spawn its own subagents.
-
-Only surviving findings become tasks. Record the verified/refuted counts for the Final Summary.
+Run **Verify Findings**. It applies to findings from **your own analysis** (step 4) — not to the incoming review comments from step 5, which are judged by their own valid / partially valid / not applicable rubric. Only surviving findings become tasks.
 
 ### 9. Generate Output
 
@@ -159,20 +79,7 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.m
 - **For humans**: friendly, modest, justified with code references
 - **For AIs**: direct, no fluff
 
-**Reconciliation (only for subsequent reviews):**
-
-```
-## Reconciliation with Previous Reviews
-
-### Resolved since last review
-- `file:line` — Description (was: review-N, now: resolved)
-
-### Still pending
-- `file:line` — Description (since review-N)
-
-### New in this review
-- `file:line` — Description
-```
+**Reconciliation (only for subsequent reviews):** append the **Reconciliation Section**.
 
 **Final Summary (always include):**
 - Total comments analyzed
@@ -184,31 +91,14 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.m
 
 ### 10. Memory — Save (execute AFTER generating output)
 
-Get the template structure:
-```bash
-bash $SCRIPTS/review/memory-manager.sh template "PR-$ARGUMENTS" "review"
-```
-
-Fill in the template with actual data from the analysis (replace placeholders with real values), then save:
-```bash
-echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-state "PR-$ARGUMENTS"
-```
-
-## Diff Reading Rules (CRITICAL)
-
-- **`+` lines** = NEW code → ANALYZE THIS
-- **`-` lines** = DELETED → IGNORE
-- **No prefix** = CONTEXT → skip unless directly impacted
-- **When in doubt** → assume NOT changed, skip
+Run **Memory — Save**.
 
 ## Common Mistakes
 
+The shared ones (diff lines, memory order, decided items, refuted verdicts) are in the workflow reference. Specific to this skill:
+
 | Mistake | Fix |
 |---------|-----|
-| Reporting issues on deleted (`-`) lines | Only analyze added (`+`) lines |
-| Re-raising decided items | Check memory state — respect previous decisions |
-| Reading memory before analysis | Load memory AFTER analysis to prevent bias |
-| Missing lesson references | Always reference specific `docs/lessons/` file paths |
 | Creating responses file at project root | Save to `memories/reviews/PR-{}/` directory |
 | Turning unverified findings into tasks | Run step 8 first — don't fix a bug that isn't there |
 | Verifying the incoming reviewer comments | Step 8 covers your own findings only |
