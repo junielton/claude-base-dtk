@@ -169,7 +169,7 @@ user can just say "use those". Wait for the answer; don't create the PR yet.
 `user-attachments` URL, the same one the web UI's drag-and-drop produces:
 
 ```bash
-SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1)
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 "$SCRIPTS/pr/upload-attachment.sh" <file> <owner/repo>
 ```
 

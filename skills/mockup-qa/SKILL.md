@@ -12,10 +12,10 @@ diff is trustworthy. Read `../create-mockup/references/mockup-convention.md` (`$
 ## Step 0 — scripts and gate
 
 ```bash
-SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 6 2>/dev/null | head -1); echo "$SCRIPTS"
-MK="${CLAUDE_PLUGIN_ROOT:-}/skills/create-mockup"; [ -d "$MK" ] || MK=$(ls -d ~/.claude/plugins/cache/dtk-marketplace/dtk/*/skills/create-mockup 2>/dev/null | sort -V | tail -1); echo "$MK"
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
+MK="${CLAUDE_PLUGIN_ROOT}/skills/create-mockup"; echo "$MK"
 bash $SCRIPTS/dsqa/check-deps.sh --install
-node $MK/scripts/check-mockup.mjs <folder> --tokens-source <tokensFrom>
+node $SCRIPTS/mockup/check-mockup.mjs <folder> --tokens-source <tokensFrom>
 ```
 
 Checker errors → the mockup is not a valid contract; stop and say so.

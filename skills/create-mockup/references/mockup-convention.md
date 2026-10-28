@@ -2,7 +2,7 @@
 
 The shared contract between `create-mockup` (authors), `implement-mockup` (consumes) and
 `mockup-qa` (verifies). Templates live in `../templates/`, the mechanical gate in
-`../scripts/check-mockup.mjs`.
+`scripts/mockup/check-mockup.mjs` (plugin root).
 
 ## Why one file per screen
 
@@ -142,7 +142,7 @@ Start from `templates/index.html`. It is the human page and it stays **thin**:
 ## The checker
 
 ```bash
-node $MK/scripts/check-mockup.mjs docs/design/<slug> --tokens-source <project tokens file>
+node $SCRIPTS/mockup/check-mockup.mjs docs/design/<slug> --tokens-source <project tokens file>
 ```
 
 Run it before every presentation, before any status flip, and first thing in

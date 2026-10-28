@@ -81,9 +81,12 @@ can follow along.
 
 2. **Analyze and find the cut point.** Run `analyze_branches.sh`:
 
+   ```bash
+   SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
+   "$SCRIPTS/git-rebase-onto/analyze_branches.sh" <source-branch> [<topic=HEAD>] --newbase <target-branch>
    ```
-   ${CLAUDE_SKILL_DIR}/scripts/analyze_branches.sh <source-branch> [<topic=HEAD>] --newbase <target-branch>
-   ```
+
+   Use the output path as `$SCRIPTS` for all script commands below.
 
    It prints the merge-base (recommended oldbase), numbered logs of both branches,
    a contamination report (`git cherry`: `-` = already in base by patch-id), and a
@@ -116,7 +119,7 @@ can follow along.
    list and exact command. Show this to the user.
 
    ```
-   ${CLAUDE_SKILL_DIR}/scripts/safe_rebase_onto.sh --newbase <target> --oldbase <cut> --topic <branch>
+   "$SCRIPTS/git-rebase-onto/safe_rebase_onto.sh" --newbase <target> --oldbase <cut> --topic <branch>
    ```
 
    The preview also flags two silent hazards — decide them with the user before
@@ -189,7 +192,7 @@ evidence; if a real decision remains, hand it to the user with clear options.**
 A wrong "confident" resolution silently corrupts code, which is far worse than
 pausing to ask. Be conservative.
 
-Run `${CLAUDE_SKILL_DIR}/scripts/conflict_status.sh` to see the conflicted files and, for each, the
+Run `"$SCRIPTS/git-rebase-onto/conflict_status.sh"` to see the conflicted files and, for each, the
 three versions available:
 
 - `git show :1:<file>` — common ancestor (base of the conflict)
@@ -263,8 +266,8 @@ Mid-rebase escape hatches: `git rebase --abort` (back to the start), `git rebase
 ## Scripts
 
 All scripts are read-only except `safe_rebase_onto.sh --execute`. They live in
-`${CLAUDE_SKILL_DIR}/scripts/` — this skill's own folder, not the repo you are
-rebasing — and print usage with `-h`. Run them with the repo as the working
+`$SCRIPTS/git-rebase-onto/` — the plugin's scripts folder (resolved in step 2),
+not the repo you are rebasing — and print usage with `-h`. Run them with the repo as the working
 directory.
 
 - `analyze_branches.sh <base> [topic] [--newbase ref] [--limit N]` — find the cut
