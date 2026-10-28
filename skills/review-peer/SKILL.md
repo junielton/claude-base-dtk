@@ -125,14 +125,19 @@ For each candidate finding, dispatch the `dtk-review-verifier` subagent (Task to
 severity:  blocking | non-blocking | question
 location:  file:line
 claim:     <the one-line assertion you want to post>
-reasoning: <why you believe it>
 scope:     PR #$ARGUMENTS
+empirical: off
+
+--- reasoning (read only after recording blind_verdict) ---
+<why you believe it>
 ```
+
+Keep `reasoning` last, under that heading: the verifier forms a blind verdict before it reads it. `empirical: allowed` (only when the user asked for it) lets a `blocking` finding run one allowlisted read-only command or filtered test; default `off`.
 
 Rules:
 
 - **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
-- **Drop every finding returned as `refuted`.** Do not re-argue the verdict.
+- **Drop every finding whose `final_verdict` is `refuted`.** Do not re-argue the verdict.
 - If it returns `suggested-severity`, move the finding to that bucket before posting.
 - You are the orchestrator; the verifier cannot spawn its own subagents.
 
