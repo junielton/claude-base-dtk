@@ -7,8 +7,8 @@
 # compares the returned verdict to the expected one.
 #
 # Usage:
-#   ./run.sh                      # all cases, default model
-#   ./run.sh --model opus         # pick the model
+#   ./run.sh                      # all cases, on the agent's frontmatter model
+#   ./run.sh --model opus         # override the model
 #   ./run.sh --case 4,6           # only these case ids
 #   ./run.sh --jobs 1             # serialize (default 4)
 #   ./run.sh --keep               # keep the temp repo and raw outputs for inspection
@@ -46,6 +46,13 @@ for bin in jq git claude; do
 done
 [ -f "$CASES" ] || { echo "missing $CASES" >&2; exit 2; }
 [ -f "$AGENT" ] || { echo "missing agent definition: $AGENT" >&2; exit 2; }
+
+# Default to the model the agent's frontmatter pins, so the suite measures what the review
+# skills actually dispatch. `inherit` (or no model line) falls back to the session default.
+if [ -z "$MODEL" ]; then
+    MODEL="$(awk '/^---[[:space:]]*$/{fm++; next} fm==1 && /^model:/{sub(/^model:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); print; exit}' "$AGENT")"
+    [ "$MODEL" = "inherit" ] && MODEL=""
+fi
 
 WORK="$(mktemp -d -t dtk-verifier-eval.XXXXXX)"
 REPO="$WORK/repo"
@@ -118,13 +125,18 @@ run_case() {
     reasoning="$(jq -r '.reasoning' <<<"$c")"
     empirical="$(jq -r '.empirical // "off"' <<<"$c")"
 
+    # Same shape the review skills dispatch: reasoning last, under its own heading, so the
+    # agent can form its blind verdict before reading it.
     payload="Verify this single code-review finding.
 
 severity:  $severity
 location:  $location
 claim:     $claim
-reasoning: $reasoning
-scope:     $SCOPE"
+scope:     $SCOPE
+empirical: $empirical
+
+--- reasoning (read only after recording blind_verdict) ---
+$reasoning"
 
     tools=(Read Grep Glob
         "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git status:*)")
