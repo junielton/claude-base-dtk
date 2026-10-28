@@ -86,10 +86,10 @@ auto-detected. It works in any repo with `git` + `gh`.
 
 ## Final report
 
-End the run with a `/dtk:report-back` final report: one ✅/⏭️/❌ line per
-pipeline step above (⏭️ for steps the resume logic skipped, ❌ + one reason for
-a red gate), then a summary of at most 3 lines. Follow that skill's format
-rather than improvising one here.
+End the run with a `/dtk:report-back` final report: one row per pipeline step
+above (steps the resume logic skipped are reported as skipped; a red gate gets
+one concrete reason). Follow that skill's format rather than improvising one
+here.
 
 ## Resuming mid-pipeline
 
