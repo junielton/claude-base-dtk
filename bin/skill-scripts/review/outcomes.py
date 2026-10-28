@@ -340,6 +340,40 @@ def self_test():
     assert result["outcomes"]["rev"]["FFT"]["no_reply"] == 1
     assert result["outcomes"]["rev"]["Q"]["pending"] == 1  # open PR is not "no reply"
     assert result["verdicts"]["rev"] == Counter({"COMMENT": 1, "APPROVED": 1})
+
+    # marked-wrong signal: a `wrong:` tag, a thumbs-down, or "not an issue" in the author's reply
+    assert MARKED_WRONG_RE.search("Wrong: this is guarded upstream")
+    assert MARKED_WRONG_RE.search("\U0001f44e")
+    assert MARKED_WRONG_RE.search("Not an issue here")
+    assert not MARKED_WRONG_RE.search("I was wrong, good catch")
+
+    # --json: the seven metrics, per reviewer and per tag, with stable key names
+    changes = {"id": "r2", "state": "CHANGES_REQUESTED"}
+    judged = pr(
+        "MERGED",
+        [
+            [comment("rev", "NIT: y", review), comment("dev", "\U0001f44e not an issue")],
+            [comment("rev", "CR: bad", changes), comment("dev", "Fixed in abc1234")],
+        ],
+    )
+    payload = json.loads(render_json(analyze([merged, open_pr, judged]), ["rev"]))
+    metrics = payload["rev"]["metrics"]
+    assert tuple(metrics["total"]) == METRIC_KEYS
+    assert set(metrics["by_tag"]) == set(TAGS)
+    assert all(tuple(row) == METRIC_KEYS for row in metrics["by_tag"].values())
+    assert metrics["total"] == {
+        "posted": 5, "refuted_by_verifier": None, "accepted": 2, "resolved_by_merge": 1,
+        "marked_wrong": 1, "hedges": 1, "cr_as_cr": 1,
+    }
+    assert metrics["by_tag"]["CR"] == {
+        "posted": 2, "refuted_by_verifier": None, "accepted": 2, "resolved_by_merge": 0,
+        "marked_wrong": 0, "hedges": 1, "cr_as_cr": 1,
+    }
+    assert metrics["by_tag"]["NIT"]["marked_wrong"] == 1
+    assert metrics["by_tag"]["FFT"]["resolved_by_merge"] == 1
+    assert metrics["by_tag"]["untagged"]["posted"] == 0
+    assert metrics["not_measured"] == ["refuted_by_verifier"]
+    assert payload["rev"]["hedges"] == 1  # keys older consumers read are untouched
     print("self-test ok")
 
 
