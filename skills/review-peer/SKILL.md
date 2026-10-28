@@ -76,18 +76,18 @@ Run **Verify Findings**. The Blocking / Non-blocking / Questions buckets map one
 N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "peer-review")
 ```
 
-Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/peer-review-{N}.md`
+Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/peer-review-{N}.md` (markers: `${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`)
 
 ```
 # Peer Review — PR #$ARGUMENTS
 
-## Recommendation: ✅ Approve | ⚠️ Approve with Comments | ❌ Request Changes
+## Recommendation: ✓ Approve | ! Approve with Comments | ✗ Request Changes
 
 **Summary:** 2-3 sentences on overall PR quality and key concerns.
 
 ---
 
-## 🔴 Blocking
+## ✗ Blocking
 
 ### `file:line` — Short title
 ```language
@@ -97,7 +97,7 @@ Your feedback explaining why this blocks the merge and what should change.
 
 ---
 
-## 🟡 Non-blocking
+## ! Non-blocking
 
 ### `file:line` — Short title
 ```language
@@ -107,7 +107,7 @@ Suggestion for improvement. Does not block merge.
 
 ---
 
-## 💬 Questions
+## ? Questions
 
 ### `file:line` — Short title
 Genuine question for the author when something is unclear.
@@ -153,9 +153,9 @@ Findings should be:
 
 ## Severity Definitions
 
-- **🔴 Blocking** — must be fixed before merge (bugs, security issues, breaking changes)
-- **🟡 Non-blocking** — improvement opportunity, does not block merge
-- **💬 Questions** — genuine clarification requests for the author
+- **✗ Blocking** — must be fixed before merge (bugs, security issues, breaking changes)
+- **! Non-blocking** — improvement opportunity, does not block merge
+- **? Questions** — genuine clarification requests for the author
 
 ## Common Mistakes
 

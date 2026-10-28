@@ -61,7 +61,7 @@ Run **Verify Findings**. Tell the verifier the scope includes uncommitted work, 
 N=$(bash $SCRIPTS/review/memory-manager.sh next-number "$CURRENT_BRANCH" "review")
 ```
 
-Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
+Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md` (markers: `${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`)
 
 ```
 ## Local Review — <current-branch> vs <base-branch>
@@ -71,10 +71,10 @@ Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
 
 ### Issues Found
 
-#### Critical
+#### ✗ Critical
 - [ ] `file:line` — Description of the issue
 
-#### Important
+#### ! Important
 - [ ] `file:line` — Description of the issue
 
 #### Minor / Suggestion
@@ -88,7 +88,7 @@ Save to: `{project_root}/memories/reviews/{branch-name}/review-{N}.md`
 - Total issues found by severity
 - **Findings verified: X kept, Y refuted by `dtk-review-verifier`**
 - Lessons Learned that applied (list which ones)
-- Overall assessment: Ready to commit/push | Needs fixes first
+- Overall assessment: ✓ Ready to commit/push | ✗ Needs fixes first
 
 ### 9. Memory — Save (execute AFTER generating output)
 
