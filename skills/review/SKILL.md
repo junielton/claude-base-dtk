@@ -58,18 +58,18 @@ N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "review")
 
 Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}.md`
 
-**Valid comments → Tasks:**
+**Valid comments → Tasks** (markers: `${CLAUDE_SKILL_DIR}/references/output-vocabulary.md`):
 
 ```
 ## Tasks — PR #$ARGUMENTS
 
-### 🔴 Critical
+### ✗ Critical
 - [ ] `file:line` — Description (by @author) — violates `docs/lessons/.../NNN-slug.md`
 
-### 🟡 Important
+### ! Important
 - [ ] `file:line` — Description
 
-### 🟢 Minor / Suggestion
+### Minor / Suggestion
 - [ ] `file:line` — Description
 ```
 
@@ -87,7 +87,7 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.m
 - **Own findings verified: X kept, Y refuted by `dtk-review-verifier`**
 - Lessons that applied (**file paths**)
 - ADRs that were relevant
-- Overall: ✅ Approve | ⚠️ Approve with Comments | ❌ Request Changes
+- Overall: ✓ Approve | ! Approve with Comments | ✗ Request Changes
 
 ### 10. Memory — Save (execute AFTER generating output)
 
