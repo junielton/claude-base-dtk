@@ -86,7 +86,7 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 
 ### HTML mockups (no Figma)
 
-A visual contract authored as HTML inside the project: `docs/design/<slug>/` with `mockup.json` (status per screen), one `screens/<id>.html` per screen (states via `?state=`, flows via `data-goto` navigating between files), optional `parts/`, the project's tokens copied verbatim, and a thin `index.html` that only embeds. `skills/create-mockup/scripts/check-mockup.mjs` is the mechanical gate the three skills share.
+A visual contract authored as HTML inside the project: `docs/design/<slug>/` with `mockup.json` (status per screen), one `screens/<id>.html` per screen (states via `?state=`, flows via `data-goto` navigating between files), optional `parts/`, the project's tokens copied verbatim, and a thin `index.html` that only embeds. `scripts/mockup/check-mockup.mjs` is the mechanical gate the three skills share.
 
 | Skill | Command | Description |
 |-------|---------|-------------|
