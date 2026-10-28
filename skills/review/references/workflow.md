@@ -36,7 +36,7 @@ Read every lesson — each is a mandatory checkpoint during analysis.
 
 **Stack references (optional).** The checklist in **Analyze** is stack-neutral. Stack-specific checks live in `stacks/` next to this file and are loaded only when the stack is detected:
 
-- `composer.json` exists at the project root → read `stacks/laravel.md` (Eloquent, Livewire, Laravel framework checks)
+- `composer.json` exists at the project root → read `stacks/laravel.md` from the directory you read this file from, not the project root (Eloquent, Livewire, Laravel framework checks)
 
 Another stack gets its own `stacks/<stack>.md` with a one-line detection rule added to this list; none is mandatory, and a project with no matching file uses the neutral checklist alone.
 
@@ -69,7 +69,7 @@ Example: "Violates `docs/lessons/security/001-sql-injection-raw-query.md` — ra
 **Pass 4 — General Analysis:** Evaluate each `+` line against (plus the checks of any stack reference loaded above):
 - **Logical correctness**: does the code do what it should?
 - **Project standards**: follows conventions from CLAUDE.md?
-- **Security**: injection risks, unfiltered input written to models or records (mass assignment), missing auth checks, exposed data
+- **Security**: injection risks, input used before it is validated, unfiltered input written to models or records (mass assignment), missing auth checks, exposed data
 - **Performance**: queries or remote calls inside loops (N+1), related data not fetched in one batch, missing cache
 - **Testability**: do the changes have test coverage? Should they?
 - **Side effects**: could the change break something elsewhere?
@@ -113,7 +113,7 @@ reasoning: <why you believe it>
 scope:     <scope>
 ```
 
-Map your buckets to the severities the verifier expects: Critical → `blocking`, Important → `non-blocking`, Minor/Suggestion → `non-blocking`.
+In `/review` and `/review-local`, map your buckets to the severities the verifier expects (`/review-peer` states its own one-to-one mapping): Critical → `blocking`, Important → `non-blocking`, Minor/Suggestion → `non-blocking`.
 
 Rules:
 
