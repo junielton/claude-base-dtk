@@ -5,6 +5,9 @@
 # Materializes the Laravel fixture into a throwaway git repo (base commit + change
 # commit), runs the agent's own instructions against each labeled finding, and
 # compares the returned verdict to the expected one.
+
+# Docs and recorded results: README.markdown next to this script (not README.md: every
+# *.md under agents/ loads as an agent definition).
 #
 # Usage:
 #   ./run.sh                      # all cases, on the agent's frontmatter model
