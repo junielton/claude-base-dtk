@@ -22,6 +22,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CASES="$SCRIPT_DIR/cases.json"
 SKILL="$SCRIPT_DIR/../SKILL.md"
+WORKFLOW="$SCRIPT_DIR/../../review/references/workflow.md"
 FIXTURE="$SCRIPT_DIR/../../../agents/evals/dtk-review-verifier/fixture"
 GRADER="$SCRIPT_DIR/grade.py"
 
@@ -49,6 +50,7 @@ for bin in jq git claude python3; do
 done
 [ -f "$CASES" ] || { echo "missing $CASES" >&2; exit 2; }
 [ -f "$SKILL" ] || { echo "missing skill: $SKILL" >&2; exit 2; }
+[ -f "$WORKFLOW" ] || { echo "missing shared workflow: $WORKFLOW" >&2; exit 2; }
 [ -d "$FIXTURE/before" ] && [ -d "$FIXTURE/after" ] || { echo "missing fixture: $FIXTURE" >&2; exit 2; }
 
 WORK="$(mktemp -d -t dtk-review-peer-eval.XXXXXX)"
@@ -71,9 +73,14 @@ trap cleanup EXIT
 # rules, where the severity hint lives), the report format of step 9 and the severity
 # definitions. The GitHub-collection step (3) is replaced by a local `git diff`; memory,
 # lessons and publishing are out of scope.
-section() { # section <start-regex> <stop-regex>
-    awk -v s="$1" -v e="$2" '$0 ~ s {on=1} on && $0 ~ e {exit} on {print}' "$SKILL"
+# Steps 4 and 8 point into the shared review workflow (skills/review/references/workflow.md);
+# its Analyze and Verify Findings sections are appended after them, unless the skill under
+# test still carries the passes inline (a pre-extraction snapshot passed with --skill).
+section() { # section <start-regex> <stop-regex> [file]
+    awk -v s="$1" -v e="$2" '$0 ~ s {on=1} on && $0 ~ e {exit} on {print}' "${3:-$SKILL}"
 }
+INLINE=0
+grep -q 'Pass 1 — Map Changes' "$SKILL" && INLINE=1
 template() {
     awk '/^# Peer Review — /{on=1} /^\*\*Reconciliation/{on=0} on{l[n++]=$0}
          END{while(n>0 && (l[n-1]=="" || l[n-1]=="```")) n--; for(i=0;i<n;i++) print l[i]}' "$SKILL"
@@ -94,14 +101,16 @@ Write the report as it would read once step 8 is done, and print it as your fina
 HDR
     section '^### 4[.] ' '^### 5[.] '
     echo
+    [ "$INLINE" -eq 1 ] || { section '^## Analyze' '^## Memory' "$WORKFLOW"; echo; }
     section '^### 8[.] ' '^### 9[.] '
     echo
+    [ "$INLINE" -eq 1 ] || { section '^## Verify Findings' '^## Reconciliation' "$WORKFLOW"; echo; }
     section '^## Severity Definitions' '^## Common'
     echo
     echo "### Report format"
     echo
     template
-} | sed 's/PR #\$ARGUMENTS/feature\/orders-invoices/g; s/PR-\$ARGUMENTS/feature-orders-invoices/g' > "$PROMPT"
+} | sed 's/PR #\$ARGUMENTS/feature\/orders-invoices/g; s/PR-\$ARGUMENTS/feature-orders-invoices/g; s/<scope>/feature\/orders-invoices/g' > "$PROMPT"
 [ -s "$PROMPT" ] || { echo "could not build prompt from $SKILL" >&2; exit 2; }
 
 # --------------------------------------------------------------- fixture repo
