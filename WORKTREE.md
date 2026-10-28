@@ -6,8 +6,8 @@ This plugin has no build step and no runtime dependencies. A fresh worktree is u
 
 ```bash
 bash skills/review-publish/tests/run-tests.sh      # tone-lint + post-review (offline, stub gh)
-node --test bin/skill-scripts/design-panel/tests/  # design-panel scripts
-python3 bin/skill-scripts/review/outcomes.py --self-test
+node --test scripts/design-panel/tests/*.test.mjs  # design-panel scripts
+python3 scripts/review/outcomes.py --self-test
 claude plugin validate --strict .                  # manifest + frontmatter lint
 ```
 
