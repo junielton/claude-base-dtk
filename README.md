@@ -7,10 +7,10 @@ A plugin for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) with 
 ### 1. Add the marketplace
 
 ```bash
-claude plugin marketplace add git@github.com:junielton/claude-base-dtk.git
+claude plugin marketplace add https://github.com/junielton/claude-base-dtk.git
 ```
 
-> **Private repo?** Works the same way — just make sure your machine has SSH access to the repo.
+> **Prefer SSH?** `claude plugin marketplace add git@github.com:junielton/claude-base-dtk.git` works the same way — just make sure your machine has SSH access to GitHub.
 
 ### 2. Install the plugin
 
@@ -50,6 +50,7 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 | **debug-gh-action** | `/dtk:debug-gh-action` | Debugs a failing GitHub Actions run end-to-end — resolves the run/job, reads logs, root-causes it, verifies the fix CI-parity, commits/pushes |
 | **report-back** | `/dtk:report-back` | Shared final-report format for multi-step runs: a rail of steps with concrete outcomes, a ledger of what is owed, a links list and a ≤3-line summary |
 | **learn-from-review** | `/dtk:learn-from-review` | Extracts actionable lessons from code review sessions and persists them as individual files in `docs/lessons/` |
+| **draft-to-prompt** | `/dtk:draft-to-prompt` | Turns a rough idea, draft or vague request into a production-quality prompt for Claude models (Haiku, Sonnet, Opus, Fable) — also for boot prompts for new sessions, worktrees or dispatched agents |
 
 ### Code review (with persistent memory)
 
@@ -81,6 +82,7 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 |-------|---------|-------------|
 | **dsqa** | `/dtk:dsqa` | Compares a Figma design against a running browser implementation — reports every deviation with exact values and fixes |
 | **implement-design** | `/dtk:implement-design` | Full workflow from Figma design to implemented component — handles context gathering, planning, execution, and DSQA verification |
+| **laravel-scaffold-design-panel** | `/dtk:laravel-scaffold-design-panel` | Installs the dtk design-system panel in a Laravel project — a `/design-system` showcase with per-component preview routes and Figma-link/sync/API features driven by `design/manifests/` |
 
 ### HTML mockups (no Figma)
 
@@ -138,6 +140,10 @@ If auto-update is enabled for the marketplace, the plugin updates automatically 
 claude plugin update dtk@dtk-marketplace
 ```
 
+## Releases
+
+Every merge to `main` with a releasable Conventional Commit is versioned and tagged automatically by `.github/workflows/auto-version.yml`, which also publishes a [GitHub Release](https://github.com/junielton/claude-base-dtk/releases) and prepends a section to [`CHANGELOG.md`](CHANGELOG.md).
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE). © Junielton Quirino.
