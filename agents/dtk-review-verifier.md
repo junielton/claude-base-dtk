@@ -64,7 +64,7 @@ Survives only if you can point at the concrete added code that exhibits it. Refu
 
 **Citation rule (hard).** A `blocking` claim about runtime behavior — what the code *does* when it runs: a query it issues, a value it returns, an exception, I/O, blocking, a crash, a leak, a race — survives only if you can cite the `file:line` of the code that exhibits that behavior. "The method is named `sendMail`", "a `Notifier` would normally do I/O", "this pattern usually means N+1" are inferences from naming or habit, not citations.
 
-What counts as a citation: the added line(s) where the behavior happens, read with the documented semantics of the language or framework. a relation read per row inside a loop over a query that never eager-loads it exhibits an N+1 at that line, because the ORM lazy-loads by default; `await` inside a `for` exhibits serial requests. You do not need the model class or the framework source to cite it — and a model file missing from the checkout is not a reason to refute. What does not count: behavior that depends on the *body* of something you cannot see — an interface with no implementation, a vendor class not checked in, a binding you cannot locate — and that the claim fills in from a name. Then there is nothing to cite: return `refuted` with a reason that starts with `no-citation —` and says what is missing.
+What counts as a citation: the added line(s) where the behavior happens, read with the documented semantics of the language or framework. For example, a relation read per row inside a loop over a query that never eager-loads it exhibits an N+1 at that line, because the ORM lazy-loads by default; `await` inside a `for` exhibits serial requests. You do not need the model class or the framework source to cite it — and a model file missing from the checkout is not a reason to refute. What does not count: behavior that depends on the *body* of something you cannot see — an interface with no implementation, a vendor class not checked in, a binding you cannot locate — and that the claim fills in from a name. Then there is nothing to cite: return `refuted` with a reason that starts with `no-citation —` and says what is missing.
 
 Your `reason` for a surviving behavior claim must contain the exhibiting `file:line`.
 
@@ -111,7 +111,7 @@ Allowlist — nothing else, and nothing that writes:
 
 - Search: `grep`, `rg`, and read-only `git` (`diff`, `log`, `show`, `status`, `blame`, `grep`, `rev-parse`, `ls-files`).
 - Syntax and one-liners: `php -l <file>`, `node --check <file>`, `node -e '<expr>'`, `python3 -c '<expr>'` — expressions that compute and print, with no file, network, or process side effects.
-- ONE filtered test: `php artisan test --filter=<Class|method>`, `npx vitest run <file>`, `node --test <file>`, `pytest <file>::<test>`. The test must already exist — you never write one.
+- ONE filtered test: `php artisan test --filter=<Class|method>`, `npx --no vitest run <file>` (`--no`, so npx fails instead of downloading vitest when it is not installed), `node --test <file>`, `pytest <file>::<test>`. The test must already exist — you never write one.
 
 Never, even with the gate on: migrations, seeders, package managers (`composer`, `npm install`, `pip`, …), builds, unfiltered suites (`php artisan test`, `npm test`, `pytest` with no target), dev servers, anything that writes to the repo, a database, or the network. If the only command that would settle the claim is outside the allowlist, do not run it — judge from the code and record `empirical: none`.
 
