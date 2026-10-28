@@ -56,6 +56,7 @@ Extract `fileKey` and `nodeId` from Figma URLs:
 ## Phase 1.5 — Resolve Scripts & Load Lessons
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 

@@ -82,6 +82,7 @@ can follow along.
 2. **Analyze and find the cut point.** Run `analyze_branches.sh`:
 
    ```bash
+   # resolver idiom: docs/conventions/script-resolution.md
    SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
    "$SCRIPTS/git-rebase-onto/analyze_branches.sh" <source-branch> [<topic=HEAD>] --newbase <target-branch>
    ```

@@ -20,6 +20,7 @@ through the steps below in order.
 (optionally with `/job/<job_id>` and/or a `?query=string`), run:
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 "$SCRIPTS/gh-action/resolve-run.sh" "<url>"
 ```

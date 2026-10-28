@@ -27,6 +27,7 @@ Reviews all changes on the current branch compared to a base branch (including u
 ## Step 0: Resolve Scripts
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 

@@ -12,6 +12,7 @@ diff is trustworthy. Read `../create-mockup/references/mockup-convention.md` (`$
 ## Step 0 — scripts and gate
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 MK="${CLAUDE_PLUGIN_ROOT}/skills/create-mockup"; echo "$MK"
 bash $SCRIPTS/dsqa/check-deps.sh --install

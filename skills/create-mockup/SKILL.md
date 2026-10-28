@@ -62,6 +62,7 @@ composition, never from new values. Anatomy fixes have no creative axis.
 ### 4. Check
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 MK="${CLAUDE_PLUGIN_ROOT}/skills/create-mockup"; echo "$MK"
 node $SCRIPTS/mockup/check-mockup.mjs docs/design/<slug> --tokens-source <tokensFrom>

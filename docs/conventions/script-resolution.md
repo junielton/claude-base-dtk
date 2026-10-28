@@ -11,10 +11,12 @@ A skill that runs a script resolves the folder with this one line, pasted verbat
 block that runs its first script (the "Step 0: Resolve Scripts" block when the skill has one):
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 
-followed by:
+The comment line points readers of the skill back to this page; the `SCRIPTS=` line stays
+byte-identical everywhere. The block is followed by:
 
 > Use the output path as `$SCRIPTS` for all script commands below.
 

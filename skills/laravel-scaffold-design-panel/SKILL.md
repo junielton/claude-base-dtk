@@ -30,6 +30,7 @@ The panel ships its own standalone Blade shell, so no project layout is required
 
 Run the installer from the plugin:
 
+    # resolver idiom: docs/conventions/script-resolution.md
     SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
     node "$SCRIPTS/design-panel/install-design-panel.mjs" --root <projectRoot>
 

@@ -169,6 +169,7 @@ user can just say "use those". Wait for the answer; don't create the PR yet.
 `user-attachments` URL, the same one the web UI's drag-and-drop produces:
 
 ```bash
+# resolver idiom: docs/conventions/script-resolution.md
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 "$SCRIPTS/pr/upload-attachment.sh" <file> <owner/repo>
 ```
