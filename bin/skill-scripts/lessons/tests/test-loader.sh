@@ -32,4 +32,12 @@ assert_contains "category qa default: nothing" "$out" "No lessons found."
 out=$(run --include-candidates --category qa --content)
 assert_contains "category qa with candidates" "$out" "Reject an empty request body"
 
+# Only non-active lessons on disk: nothing loads, and the auto-memory fallback is not
+# consulted (it is a fallback for "no docs/lessons", not for "nothing active").
+rm "$P/docs/lessons/security/"*.md "$P/docs/lessons/code-patterns/"*.md
+mkdir -p "$P/home/.claude/projects/x/memory"
+out=$(run --list); rc=$?
+assert_eq       "only inactive: exit 0" "$rc" "0"
+assert_contains "only inactive: nothing loads" "$out" "No lessons found."
+
 finish
