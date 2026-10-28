@@ -48,7 +48,7 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 | **ship** | `/dtk:ship` | Runs the full PR lifecycle autonomously — review-local → smart-commit → create-pr → assign reviewers (CODEOWNERS + Copilot if enabled) → monitor CI + reviews → triage → reply → notify |
 | **git-rebase-onto** | `/dtk:git-rebase-onto [target] [topic]` | Moves a branch onto a new base with `git rebase --onto` — finds the cut point (stacked PRs, squash-merged parents), previews, backs up, rebases, and resolves conflicts conservatively |
 | **debug-gh-action** | `/dtk:debug-gh-action` | Debugs a failing GitHub Actions run end-to-end — resolves the run/job, reads logs, root-causes it, verifies the fix CI-parity, commits/pushes |
-| **report-back** | `/dtk:report-back` | Shared final-report format for multi-step runs: a ✅/⏭️/❌ checklist with concrete outcomes plus a ≤3-line summary |
+| **report-back** | `/dtk:report-back` | Shared final-report format for multi-step runs: a rail of steps with concrete outcomes, a ledger of what is owed, a links list and a ≤3-line summary |
 | **learn-from-review** | `/dtk:learn-from-review` | Extracts actionable lessons from code review sessions and persists them as individual files in `docs/lessons/` |
 
 ### Code review (with persistent memory)
