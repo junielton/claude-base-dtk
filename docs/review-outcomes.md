@@ -21,7 +21,7 @@ How it counts:
 
 ## Definitions
 
-Each metric below is one signal, spelled out, so two people running the script on the same PRs get the same number. No review vendor publishes neutral, reproducible definitions (Signal65's comparison is vendor-commissioned; Cursor counts an unresolved comment as a false positive), which is why they are written down here. `--json` emits exactly these keys under `metrics`, per reviewer (`total`) and per tag (`by_tag`: `Q`, `CR`, `FFT`, `NIT`, `untagged`); a metric the script cannot measure is `null`, never a guess.
+Each metric below is one signal, spelled out, so two people running the script on the same PRs get the same number. No review vendor publishes neutral, reproducible definitions, which is why they are written down here. `--json` emits exactly these keys under `metrics`, per reviewer (`total`) and per tag (`by_tag`: `Q`, `CR`, `FFT`, `NIT`, `untagged`); a metric the script cannot measure is `null`, never a guess.
 
 | Metric | JSON key | Exact signal | Status |
 |---|---|---|---|
@@ -37,6 +37,7 @@ Reading them honestly:
 
 - There is no false-positive rate here. `marked_wrong` over `posted` is a lower bound: only comments the author explicitly called wrong. A declined comment (`declined` in the acceptance table) or an unanswered one is not a false positive, it is a disagreement or silence.
 - `accepted` over `posted` is a floor for the same reason: fixes without a marker word land in `other reply`, and threads on open PRs are `pending`.
+- The metrics are not exclusive: a thread can count in both `accepted` and `marked_wrong` (a reply such as "Fixed, but it was not an issue"), so never add the columns up to `posted`.
 - Compare strict to strict between runs; the metrics are only comparable when `--limit` and `--since` match.
 
 JSON shape (existing keys `comments`, `hedges`, `optional`, `suggestions`, `cr_verdicts`, `verdicts`, `outcomes` are unchanged; the new block is added per reviewer):

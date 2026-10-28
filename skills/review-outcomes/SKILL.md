@@ -76,7 +76,7 @@ hedges are 34% of posted; target is 0 (tone lint should hold it there).
 accepted is a floor (strict reply markers); marked-wrong is a lower bound, not a false-positive rate.
 ```
 
-Layout only: every number above is made up. Real output uses the real JSON, and the read cites real counts.
+Layout only: the posted, accepted and CR-as-CR figures echo the 2026-10-20 baseline in `docs/review-outcomes.md`; the by-merge, wrong and per-tag hedges cells are illustrative. Real output uses the real JSON, and the read cites real counts.
 
 Rules for the table:
 
