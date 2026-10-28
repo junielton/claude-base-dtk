@@ -8,7 +8,9 @@ on:
     branches: [main, 'feat/**']
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # head_ref (PR) and ref_name (push) are the same branch name, so the
+  # push + pull_request pair on a feat/** branch shares one group.
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -49,11 +51,16 @@ jobs:
 
       # The validator needs no API key. If the CLI cannot be installed
       # (registry/network), warn and skip instead of failing the run.
+      # The version is pinned: an unpinned install once validated only
+      # marketplace.json and passed without checking the plugin.
       - name: Install Claude Code CLI
         id: cli
+        env:
+          CLAUDE_CLI_VERSION: '2.1.312'
         run: |
-          if npm install -g @anthropic-ai/claude-code; then
+          if npm install -g "@anthropic-ai/claude-code@${CLAUDE_CLI_VERSION}"; then
             echo "installed=true" >> "$GITHUB_OUTPUT"
+            claude --version
           else
             echo "installed=false" >> "$GITHUB_OUTPUT"
             echo "::warning title=plugin validate skipped::Claude Code CLI could not be installed; skipping plugin validation."
@@ -61,7 +68,19 @@ jobs:
 
       - name: Validate plugin
         if: steps.cli.outputs.installed == 'true'
-        run: claude plugin validate --strict .
+        run: |
+          claude --version
+          set +e
+          out=$(claude plugin validate --strict . 2>&1)
+          rc=$?
+          set -e
+          printf '%s\n' "$out"
+          # A pass that only checked marketplace.json proves nothing about the plugin.
+          if ! grep -Eq '^(Validating (plugin manifest|agent|skill|command|hook)|Plugin directory checks)' <<<"$out"; then
+            echo "::error title=plugin validate incomplete::Output shows only the marketplace manifest was checked, not the plugin."
+            exit 1
+          fi
+          exit "$rc"
 
       - name: Validate plugin (skipped)
         if: steps.cli.outputs.installed != 'true'
