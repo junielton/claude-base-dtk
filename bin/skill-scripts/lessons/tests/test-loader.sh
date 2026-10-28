@@ -40,4 +40,13 @@ out=$(run --list); rc=$?
 assert_eq       "only inactive: exit 0" "$rc" "0"
 assert_contains "only inactive: nothing loads" "$out" "No lessons found."
 
+# Status is read case-insensitively, ignoring a trailing comment; an unknown word loads nothing.
+printf -- '---\nstatus: Retired\n---\n### R\n' > "$P/docs/lessons/security/010-r.md"
+printf -- '---\nstatus: draft\n---\n### D\n' > "$P/docs/lessons/security/011-d.md"
+printf -- '---\nstatus: ACTIVE # keep\n---\n### A\n' > "$P/docs/lessons/security/012-a.md"
+out=$(run --list --include-candidates)
+assert_not_contains "Retired (any case) never loads" "$out" "010-r.md"
+assert_not_contains "unknown status never loads"     "$out" "011-d.md"
+assert_contains     "ACTIVE # comment loads"         "$out" "012-a.md"
+
 finish

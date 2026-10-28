@@ -74,7 +74,7 @@ fi
 lesson_status() {
   awk 'NR == 1 && $0 != "---" { exit }
        NR > 1 && $0 == "---" { exit }
-       NR > 1 && /^status:/ { sub(/^status:[ \t]*/, ""); gsub(/["\047 \t\r]/, ""); print; exit }' "$1"
+       NR > 1 && /^status:/ { sub(/^status:[ \t]*/, ""); sub(/[ \t]+#.*$/, ""); gsub(/["\047 \t\r]/, ""); print tolower($0); exit }' "$1"
 }
 
 LOADED=()

@@ -11,8 +11,8 @@
 // Each target gets one generated block between
 //   <!-- dtk:lessons:start -->  and  <!-- dtk:lessons:end -->
 // Only that block is rewritten; every byte outside the markers is kept. A file without
-// markers gets the block appended; a missing file is created (unless there is nothing
-// active to export). Lessons are ordered by severity, then path, so a run with the same
+// markers gets the block appended; a missing file is created. With nothing active to
+// export, a missing or marker-less file is left alone (an existing block is still refreshed). Lessons are ordered by severity, then path, so a run with the same
 // lessons writes the same bytes (idempotent: the second run leaves no diff).
 //
 // Copilot cap: the whole copilot-instructions.md file is kept at <= --copilot-cap
@@ -88,7 +88,8 @@ function plan(file, lessons, withPath, cap) {
   const exists = existsSync(file);
   const text = exists ? readFileSync(file, 'utf8') : '';
   const parts = split(text, file);
-  if (!exists && lessons.length === 0) return { file, action: 'skipped (no active lessons)' };
+  // Nothing to export and no block of ours to refresh: leave the file (or its absence) alone.
+  if (!parts && lessons.length === 0) return { file, action: 'skipped (no active lessons)' };
   const wrap = (b) => {
     if (parts) return parts.before + b + parts.after;
     if (!exists || text === '') return b + '\n';

@@ -38,6 +38,15 @@ function splitFrontmatter(text) {
   return { fields, body: text.slice(m[0].length), raw: m[0] };
 }
 
+// Same rule as lessons-loader.sh: no status → active; case and a trailing `# comment`
+// are ignored; any other value is 'unknown', which is neither loaded nor exported.
+function normalizeStatus(raw) {
+  if (raw === undefined) return 'active';
+  const v = raw.replace(/\s+#.*$/, '').trim().toLowerCase();
+  if (v === '') return 'active';
+  return STATUSES.includes(v) ? v : 'unknown';
+}
+
 export function parseLesson(file, lessonsDir) {
   const text = readFileSync(file, 'utf8');
   const { fields, body } = splitFrontmatter(text);
@@ -46,7 +55,7 @@ export function parseLesson(file, lessonsDir) {
   return {
     file,
     rel, // e.g. security/001-parameterize-raw-queries.md
-    status: STATUSES.includes(fields.status) ? fields.status : 'active',
+    status: normalizeStatus(fields.status),
     source: fields.source || 'own',
     title: line(/^###\s+(.+)$/m) || basename(file, '.md'),
     severity: line(/^\*\*Severity:\*\*\s*(.+)$/m),

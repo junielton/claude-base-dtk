@@ -74,4 +74,23 @@ run >/dev/null 2>&1; rc=$?
 assert_eq "malformed markers: exit 2"      "$rc" "2"
 assert_eq "malformed markers: file intact" "$(cat "$R")" "$before"
 
+# 8. A status the loader would not load (wrong case, trailing comment, unknown word) is
+# never exported; a hand-written file with no markers is left alone when nothing is active.
+P2=$(make_project)
+trap 'rm -rf "$P" "$P2"' EXIT
+rm -rf "$P2/docs/lessons"/*
+mkdir -p "$P2/docs/lessons/qa"
+printf -- '---\nstatus: Retired\n---\n### Capitalized retired\n**Severity:** High\n**Rule:** Must not be exported.\n' > "$P2/docs/lessons/qa/001-a.md"
+printf -- '---\nstatus: draft\n---\n### Unknown status\n**Severity:** High\n**Rule:** Must not be exported.\n' > "$P2/docs/lessons/qa/002-b.md"
+printf -- '---\nstatus: ACTIVE # keep\n---\n### Shouting active\n**Severity:** Low\n**Rule:** Exported.\n' > "$P2/docs/lessons/qa/003-c.md"
+printf 'hand-written\n' > "$P2/REVIEW.md"
+(cd "$P2" && node "$EXPORT" >/dev/null)
+assert_contains     "odd-case active is exported"      "$(cat "$P2/REVIEW.md")" "Shouting active"
+assert_not_contains "capitalized Retired not exported" "$(cat "$P2/REVIEW.md")" "Capitalized retired"
+assert_not_contains "unknown status not exported"      "$(cat "$P2/REVIEW.md")" "Unknown status"
+rm "$P2/docs/lessons/qa/003-c.md"
+printf 'hand-written\n' > "$P2/REVIEW.md"
+(cd "$P2" && node "$EXPORT" >/dev/null)
+assert_eq "no active + no markers: file untouched" "$(cat "$P2/REVIEW.md")" "hand-written"
+
 finish
