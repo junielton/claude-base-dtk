@@ -34,6 +34,12 @@ bash $SCRIPTS/review/lessons-loader.sh --content
 
 Read every lesson — each is a mandatory checkpoint during analysis.
 
+**Stack references (optional).** The checklist in **Analyze** is stack-neutral. Stack-specific checks live in `stacks/` next to this file and are loaded only when the stack is detected:
+
+- `composer.json` exists at the project root → read `stacks/laravel.md` (Eloquent, Livewire, Laravel framework checks)
+
+Another stack gets its own `stacks/<stack>.md` with a one-line detection rule added to this list; none is mandatory, and a project with no matching file uses the neutral checklist alone.
+
 ## Collect PR Data (GitHub MCP)
 
 Use `git_owner`/`git_repo` explicitly in ALL GitHub MCP calls.
@@ -58,13 +64,13 @@ For each comment: locate code, evaluate as **valid** / **partially valid** / **n
 **Pass 2 — Understand Context:** For each changed block: what class/method, what it's trying to accomplish.
 
 **Pass 3 — Check Against Lessons Learned:** For each change, verify if any lesson applies. Mandatory and explicit in output. **Reference the specific file path**:
-Example: "Violates `docs/lessons/security/001-sql-injection-db-raw.md` — using DB::raw with interpolation"
+Example: "Violates `docs/lessons/security/001-sql-injection-raw-query.md` — raw SQL built by interpolating request input"
 
-**Pass 4 — General Analysis:** Evaluate each `+` line against:
+**Pass 4 — General Analysis:** Evaluate each `+` line against (plus the checks of any stack reference loaded above):
 - **Logical correctness**: does the code do what it should?
 - **Project standards**: follows conventions from CLAUDE.md?
-- **Security**: injection risks, mass assignment, missing auth checks, exposed data
-- **Performance**: N+1 queries, missing eager loading, missing cache
+- **Security**: injection risks, unfiltered input written to models or records (mass assignment), missing auth checks, exposed data
+- **Performance**: queries or remote calls inside loops (N+1), related data not fetched in one batch, missing cache
 - **Testability**: do the changes have test coverage? Should they?
 - **Side effects**: could the change break something elsewhere?
 
