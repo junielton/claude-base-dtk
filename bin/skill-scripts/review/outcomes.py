@@ -309,13 +309,13 @@ def to_jsonable(result, reviewers):
         for tag in TAGS:
             total.update(result["tagged"][reviewer][tag])
         out[reviewer] = {
-            "comments": dict(result["comments"][reviewer]),
+            "comments": dict(sorted(result["comments"][reviewer].items())),
             "hedges": result["hedges"][reviewer],
             "optional": result["optional"][reviewer],
             "suggestions": result["suggestions"][reviewer],
-            "cr_verdicts": dict(result["cr_verdict"][reviewer]),
-            "verdicts": dict(result["verdicts"][reviewer]),
-            "outcomes": {t: dict(c) for t, c in result["outcomes"][reviewer].items()},
+            "cr_verdicts": dict(sorted(result["cr_verdict"][reviewer].items())),
+            "verdicts": dict(sorted(result["verdicts"][reviewer].items())),
+            "outcomes": {t: dict(sorted(c.items())) for t, c in sorted(result["outcomes"][reviewer].items())},
             "metrics": {"total": metrics_of(total), "by_tag": by_tag, "not_measured": list(NOT_MEASURED)},
         }
     return out
@@ -412,6 +412,7 @@ def self_test():
     assert metrics["by_tag"]["untagged"]["posted"] == 0
     assert metrics["not_measured"] == ["refuted_by_verifier"]
     assert payload["rev"]["hedges"] == 1  # keys older consumers read are untouched
+    assert list(payload["rev"]["comments"]) == sorted(payload["rev"]["comments"])  # stable order, not first-seen
     print("self-test ok")
 
 
