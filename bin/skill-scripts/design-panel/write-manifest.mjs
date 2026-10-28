@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /**
  * The ONLY writer of design/manifests/<slug>.json. Used by
- * scaffold-design-panel (backfill via Plan 2), implement-design (Phase 7),
- * and update-design (sync touches). Node stdlib only.
+ * scaffold-design-panel (backfill via Plan 2). Node stdlib only.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
