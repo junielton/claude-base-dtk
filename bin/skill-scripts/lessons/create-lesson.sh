@@ -83,7 +83,7 @@ if [[ "$CHECK_DUP" = true ]]; then
 
     # Check title similarity (case-insensitive first-line match)
     # Title = first `### ` heading, so a leading frontmatter block is skipped
-    EXISTING_TITLE=$(grep -m1 '^### ' "$existing" | sed 's/^### //')
+    EXISTING_TITLE=$(grep -m1 '^### ' "$existing" | sed 's/^### //' || true)
     if echo "$EXISTING_TITLE" | grep -qi "$(echo "$TITLE" | sed 's/[^a-zA-Z0-9 ]//g')"; then
       echo "DUPLICATE:${existing}"
       exit 1
