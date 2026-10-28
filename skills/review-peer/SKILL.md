@@ -33,110 +33,42 @@ Use the output path as `$SCRIPTS` for all script commands below.
 
 ## Workflow
 
+Read `${CLAUDE_SKILL_DIR}/../review/references/workflow.md` now, before step 1. Steps 1–8 and 10 run its sections by name, with: `<memory-key>` = `PR-$ARGUMENTS`, `<memory-type>` = `peer-review`, `<report-prefix>` = `peer-review`, `<scope>` = `PR #$ARGUMENTS`.
+
 ### 1. Gather Project Context
 
-```bash
-bash $SCRIPTS/review/project-context.sh
-```
-
-Extract `git_owner`, `git_repo`, and `project_root` from the JSON output. Use these values explicitly in ALL GitHub MCP calls.
+Run **Gather Project Context**.
 
 ### 2. Load Mandatory References
 
-- Read `CLAUDE.md` — project conventions and architecture
-- Read `docs/conventions.md` — project-specific conventions (if exists)
-- Read `docs/adrs/index.md` — architectural decisions that may apply
-- Load all lessons:
-
-```bash
-bash $SCRIPTS/review/lessons-loader.sh --content
-```
-
-Read every lesson — each is a mandatory checkpoint.
+Run **Load Mandatory References**.
 
 ### 3. Collect Data (GitHub MCP)
 
-Use `git_owner`/`git_repo` explicitly in ALL GitHub MCP calls.
-
-1. Fetch the **full diff** of PR #$ARGUMENTS
-2. Collect **all review comments**, grouped by author
-3. Identify which files/lines each comment references
+Run **Collect PR Data** for PR #$ARGUMENTS.
 
 ### 4. Analyze (execute BEFORE generating any output)
 
-**Pass 1 — Map Changes:** List ALL changed files and their added lines (`+` only).
-
-**Pass 2 — Understand Context:** For each changed block: what class/method, what it's trying to accomplish.
-
-**Pass 3 — Check Against Lessons Learned:** For each change, verify if any lesson applies. Mandatory and explicit in output.
-
-**Pass 4 — General Analysis:** Evaluate each `+` line against:
-- **Logical correctness**: does the code do what it should?
-- **Project standards**: follows conventions from CLAUDE.md?
-- **Security**: injection risks, mass assignment, missing auth checks, exposed data
-- **Performance**: N+1 queries, missing eager loading, missing cache
-- **Testability**: do the changes have test coverage? Should they?
-- **Side effects**: could the change break something elsewhere?
+Run **Analyze**, applying the **Diff Reading Rules**.
 
 ### 5. Evaluate Existing Comments
 
-Priority order:
-1. **Tech lead** → highest priority
-2. **Other humans** → normal priority
-3. **Copilot / AIs** → only if relevant
-
-For each comment: locate code, evaluate as **valid** / **partially valid** / **not applicable**, justify with reference to actual code.
+Run **Evaluate Existing Comments**.
 
 ### 6. Memory — Load (execute AFTER analysis, BEFORE generating output)
 
-**IMPORTANT: Do NOT read memory before completing the analysis. Prevents bias.**
-
-```bash
-bash $SCRIPTS/review/memory-manager.sh init "PR-$ARGUMENTS"
-```
-
-- If `is_first_review` is true → skip reconciliation
-- If false → read state and reconcile
+Run **Memory — Load**.
 
 ### 7. Memory — Reconcile (only if review-state.md existed)
 
-**For each finding from your fresh analysis:**
-- Matches **Resolved Item** → verify fix still in place; if regressed, reopen
-- Matches **Decision** → respect it, do NOT re-raise
-- Matches **Open Item** → mark "still pending"
-- Not in state → mark "new in this review"
-
-**For each Open Item from state NOT in fresh analysis:**
-- Code in that area changed → likely resolved
-- Code unchanged → keep as Open
-
-**Peer review specifics:**
+Run **Memory — Reconcile**, then the peer review specifics:
 - Check if feedback from previous peer reviews was implemented in new commits
 - If implemented → move to Resolved with "implemented since peer-review-N"
 - If not → keep as Open
 
 ### 8. Verify Findings (kill false positives)
 
-**Execute AFTER reconciliation, BEFORE generating output.** Verifying last avoids spending subagents on findings that memory already resolved or decided.
-
-For each candidate finding, dispatch the `dtk-review-verifier` subagent (Task tool, `subagent_type: dtk-review-verifier`) with:
-
-```
-severity:  blocking | non-blocking | question
-location:  file:line
-claim:     <the one-line assertion you want to post>
-reasoning: <why you believe it>
-scope:     PR #$ARGUMENTS
-```
-
-Rules:
-
-- **Dispatch all verifications in one batch** — they are independent, so issue the Task calls in a single turn.
-- **Drop every finding returned as `refuted`.** Do not re-argue the verdict.
-- If it returns `suggested-severity`, move the finding to that bucket before posting.
-- You are the orchestrator; the verifier cannot spawn its own subagents.
-
-Only surviving findings reach the output. Record the verified/refuted counts for the Final Summary.
+Run **Verify Findings**. The Blocking / Non-blocking / Questions buckets map one-to-one to `blocking` / `non-blocking` / `question`; a finding moved by `suggested-severity` changes bucket before it is written to the report.
 
 ### 9. Generate Output
 
@@ -194,25 +126,7 @@ Justification with code references...
 - List which Lessons Learned were relevant to this review
 ```
 
-**Reconciliation (only for subsequent reviews)** — append after "Lessons Applied":
-
-```
----
-
-## Reconciliation with Previous Reviews
-
-### Resolved since last review
-- `file:line` — Description (was: peer-review-N, now: resolved)
-
-### Still pending
-- `file:line` — Description (since peer-review-N)
-
-### New in this review
-- `file:line` — Description
-
-### Previous decisions respected
-- `file:line` — "Out of scope" (decided in review-N)
-```
+**Reconciliation (only for subsequent reviews)** — append the **Reconciliation Section** after "Lessons Applied", preceded by a `---` line.
 
 **Final Summary** (always include):
 - Total comments analyzed from other reviewers
@@ -223,28 +137,11 @@ Justification with code references...
 
 ### 10. Memory — Save (execute AFTER generating output)
 
-Update (or create) `review-state.md`. If already exists from `/review` or `/review-local`, **merge** — do not overwrite.
-
-Get the template structure:
-```bash
-bash $SCRIPTS/review/memory-manager.sh template "PR-$ARGUMENTS" "peer-review"
-```
-
-Fill in the template with actual data from the analysis (replace placeholders with real values). If `review-state.md` already exists from `/review` or `/review-local`, **merge** — do not overwrite. Then save:
-```bash
-echo "<completed state content>" | bash $SCRIPTS/review/memory-manager.sh save-state "PR-$ARGUMENTS"
-```
+Run **Memory — Save**. The state is shared with `/review` and `/review-local`: merge, never overwrite.
 
 ### 11. Hand off
 
 The review is done when the report and the state are saved. To put it on GitHub, invoke `/dtk:review-publish $ARGUMENTS`. Do not draft the comment here: the report's `Reconciliation`, `Existing Review Comments` and `Final Summary` are reviewer memory and must not leak into what the author reads.
-
-## Diff Reading Rules (CRITICAL)
-
-- **Lines starting with `+`** = NEW code → ANALYZE THIS
-- **Lines starting with `-`** = DELETED code → IGNORE
-- **Lines with no prefix** = CONTEXT only → DO NOT report issues unless new code directly impacts it
-- **When in doubt whether a line was changed** → assume NOT changed, skip it
 
 ## Tone & Perspective
 
@@ -262,13 +159,11 @@ Findings should be:
 
 ## Common Mistakes
 
+The shared ones (diff lines, memory order, decided items, refuted verdicts, overwriting the state) are in the workflow reference. Specific to this skill:
+
 | Mistake | Fix |
 |---------|-----|
-| Reporting issues on deleted (`-`) lines | Only analyze added (`+`) lines |
-| Re-raising decided items | Check memory state — respect previous decisions |
 | Assuming something is wrong | Ask a question when uncertain |
 | Vague feedback without code references | Always reference file, line, and snippet |
-| Overwriting shared review-state.md | Merge with existing state, never overwrite |
 | Posting findings without verification | Run step 8 — a false positive on a teammate's PR costs credibility |
-| Re-arguing a `refuted` verdict | Drop it. The verifier read the actual code |
 | Drafting the GitHub comment inside this skill | Save the report, then `/dtk:review-publish`; CI state and old-thread status never belong to the author's comment |
