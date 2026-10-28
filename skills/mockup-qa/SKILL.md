@@ -14,11 +14,18 @@ diff is trustworthy. Read `../create-mockup/references/mockup-convention.md` (`$
 ```bash
 SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 6 2>/dev/null | head -1); echo "$SCRIPTS"
 MK="${CLAUDE_PLUGIN_ROOT:-}/skills/create-mockup"; [ -d "$MK" ] || MK=$(ls -d ~/.claude/plugins/cache/dtk-marketplace/dtk/*/skills/create-mockup 2>/dev/null | sort -V | tail -1); echo "$MK"
-bash $SCRIPTS/dsqa/check-deps.sh || npm install --save-dev puppeteer pngjs pixelmatch
+bash $SCRIPTS/dsqa/check-deps.sh --install
 node $MK/scripts/check-mockup.mjs <folder> --tokens-source <tokensFrom>
 ```
 
 Checker errors → the mockup is not a valid contract; stop and say so.
+
+**Dependency cache and comparison assumptions**
+
+- **Cache:** `${XDG_CACHE_HOME:-$HOME/.cache}/dtk` — one pinned `package.json` plus `node_modules` (puppeteer, pngjs, pixelmatch). Installed once by `check-deps.sh --install`, reused by every run, shared with `dsqa`. Nothing is written to the user's project: its `package.json`, lockfile and `node_modules` stay untouched.
+- **Clear it:** `rm -rf ~/.cache/dtk` (or `"$XDG_CACHE_HOME/dtk"`). The next `--install` rebuilds it; the first install also downloads Chromium (puppeteer's own cache, `~/.cache/puppeteer`).
+- **Comparison assumptions:** the mockup capture and the app capture must share the same viewport (`--viewport <w>x900` per screen), `deviceScaleFactor` **1** (fixed by the script) and the same element crop (`element.screenshot()` of the selector). A non-null `sizeDifference` in the result means crop or scale is misaligned and the pixel % must not be trusted. `pixelmatch` runs with `threshold 0.1`, anti-aliasing ignored.
+- **Alignment is tested:** `node --test 'bin/skill-scripts/dsqa/tests/*.test.mjs'` renders a fixture pair at 1280×800 and asserts 0% for identical pages and >0% for a 4px shift.
 
 ## 1. Resolve inputs
 
