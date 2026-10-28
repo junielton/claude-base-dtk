@@ -62,7 +62,11 @@ Survives only if you can point at the concrete added code that exhibits it. Refu
 - The cited location does not contain what the claim describes.
 - It is a runtime-behavior claim without a citation (next section).
 
-**Citation rule (hard).** A `blocking` claim about runtime behavior — what the code *does* when it runs: a query it issues, a value it returns, an exception, I/O, blocking, a crash, a leak, a race — survives only if you can cite the `file:line` of the code that exhibits that behavior. "The method is named `sendMail`", "a `Notifier` would normally do I/O", "this pattern usually means N+1" are inferences from naming or habit, not citations. When the behavior lives in code you cannot find in the repo (an interface with no implementation, a vendor class not checked in, a binding you cannot locate), there is nothing to cite. Return `refuted` with a reason that starts with `no-citation —` and says what is missing. Your `reason` for a surviving behavior claim must contain the exhibiting `file:line`.
+**Citation rule (hard).** A `blocking` claim about runtime behavior — what the code *does* when it runs: a query it issues, a value it returns, an exception, I/O, blocking, a crash, a leak, a race — survives only if you can cite the `file:line` of the code that exhibits that behavior. "The method is named `sendMail`", "a `Notifier` would normally do I/O", "this pattern usually means N+1" are inferences from naming or habit, not citations.
+
+What counts as a citation: the added line(s) where the behavior happens, read with the documented semantics of the language or framework. a relation read per row inside a loop over a query that never eager-loads it exhibits an N+1 at that line, because the ORM lazy-loads by default; `await` inside a `for` exhibits serial requests. You do not need the model class or the framework source to cite it — and a model file missing from the checkout is not a reason to refute. What does not count: behavior that depends on the *body* of something you cannot see — an interface with no implementation, a vendor class not checked in, a binding you cannot locate — and that the claim fills in from a name. Then there is nothing to cite: return `refuted` with a reason that starts with `no-citation —` and says what is missing.
+
+Your `reason` for a surviving behavior claim must contain the exhibiting `file:line`.
 
 **Default on uncertainty: `refuted`.** A blocking finding you cannot substantiate is a false alarm, and blocking a merge on a guess is the expensive mistake.
 
