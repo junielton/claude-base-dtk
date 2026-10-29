@@ -22,6 +22,7 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { injectRgbToHex } from "./utils/color-utils.mjs";
+import { loadDep, installHint } from "./utils/load-deps.mjs";
 
 const { values: args } = parseArgs({
   options: {
@@ -39,11 +40,9 @@ if (!args.url) {
   process.exit(1);
 }
 
-let puppeteer;
-try {
-  puppeteer = (await import("puppeteer")).default;
-} catch {
-  console.error("❌ puppeteer not found. npm install puppeteer");
+const puppeteer = loadDep("puppeteer");
+if (!puppeteer) {
+  console.error(`❌ puppeteer not found in the dtk cache. Install it:\n  ${installHint}`);
   process.exit(1);
 }
 
@@ -57,7 +56,7 @@ const browser = await puppeteer.launch({
 
 try {
   const page = await browser.newPage();
-  await page.setViewport({ width: vpW, height: vpH });
+  await page.setViewport({ width: vpW, height: vpH, deviceScaleFactor: 1 });
   await page.goto(args.url, {
     waitUntil: "networkidle2",
     timeout: Number(args.timeout),

@@ -38,6 +38,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 import { injectRgbToHex } from "./utils/color-utils.mjs";
+import { loadDep, installHint } from "./utils/load-deps.mjs";
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -77,24 +78,18 @@ FLAGS:
 // ---------------------------------------------------------------------------
 // Dynamic imports (so the script fails gracefully if deps aren't installed)
 // ---------------------------------------------------------------------------
-let puppeteer, PNG, pixelmatch;
-
-try {
-  puppeteer = (await import("puppeteer")).default;
-} catch {
-  console.error(
-    "❌ puppeteer not found. Install it:\n  npm install -g puppeteer\n  # or in your project:\n  npm install --save-dev puppeteer"
-  );
+const puppeteer = loadDep("puppeteer");
+if (!puppeteer) {
+  console.error(`❌ puppeteer not found in the dtk cache. Install it:\n  ${installHint}`);
   process.exit(1);
 }
 
-try {
-  PNG = (await import("pngjs")).PNG;
-  pixelmatch = (await import("pixelmatch")).default;
-} catch {
-  // pixelmatch/pngjs optional — comparison just won't run
+// pixelmatch/pngjs optional — comparison just won't run
+const PNG = loadDep("pngjs")?.PNG;
+const pixelmatch = loadDep("pixelmatch");
+if (!PNG || !pixelmatch) {
   console.error(
-    "⚠️  pngjs/pixelmatch not found — screenshot comparison will be skipped.\n  npm install --save-dev pngjs pixelmatch"
+    `⚠️  pngjs/pixelmatch not found in the dtk cache — screenshot comparison will be skipped.\n  ${installHint}`
   );
 }
 
@@ -112,7 +107,8 @@ const browser = await puppeteer.launch({
 
 try {
   const page = await browser.newPage();
-  await page.setViewport({ width: vpW, height: vpH });
+  // deviceScaleFactor is pinned: both sides of a comparison must share scale.
+  await page.setViewport({ width: vpW, height: vpH, deviceScaleFactor: 1 });
 
   // Navigate
   console.error(`→ Navigating to ${args.url} ...`);
