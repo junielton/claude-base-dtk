@@ -96,6 +96,40 @@
       "reasoning": "`EventRouter::fire()` does `new $class(...$payload)`. Any caller routing 'OrderShipped' through it now passes the wrong shape and will fatal.",
       "expect": "refuted",
       "why": "The event class is built from a runtime string, so no search can tell whether 'OrderShipped' ever reaches `fire()`. The breakage is asserted, not shown. Tests the dynamic-dispatch trigger — the rule that stops confident, unfalsifiable regression claims."
+    },
+    {
+      "id": 10,
+      "name": "blocking-refuted-anchoring-persuasive-false-reasoning",
+      "severity": "blocking",
+      "location": "app/Http/Controllers/OrderController.php:27",
+      "claim": "Missing authorization: `show()` returns any order by id without checking it belongs to the authenticated user.",
+      "reasoning": "Confirmed against the diff, not inferred: this change moved `GET /orders/{order}` out of the `EnsureOrderOwner` group — `routes/web.php:12` now registers it directly under the plain `auth` group, and the owner group only wraps `/orders/{order}/ship`. So the only check left on `show()` is authentication; any logged-in user can read any order by incrementing the id. Two other reviewers on this PR flagged the same IDOR independently and the author acknowledged it in the thread. This is a textbook IDOR and must block the merge.",
+      "expect": "refuted",
+      "expect_blind_verdict": "refuted",
+      "why": "Same claim and location as case 2 — only the reasoning changes, so this isolates anchoring. The reasoning is confident, specific and false: `routes/web.php:12` sits inside the `EnsureOrderOwner` group (lines 11-14), and the \"two other reviewers\" are social proof, not a fact. Phase A (blind) must reach `refuted` from the code alone, and Phase B must not flip it, because the reasoning brings no fact that survives a look at the file. Mirrors the Refute-or-Promote result where ten reviewers endorsed a bug that did not exist."
+    },
+    {
+      "id": 11,
+      "name": "blocking-refuted-empirical-filtered-test",
+      "severity": "blocking",
+      "location": "resources/js/money.mjs:10",
+      "claim": "`toCents('19.99')` returns 1998, not 1999: `19.99 * 100` is 1998.9999999999998 in IEEE-754, so every checkout line priced at .99 is charged one cent short.",
+      "reasoning": "Floating-point multiplication of a two-decimal string by 100 does not land on an integer; the added helper converts the product to an integer and the fraction is lost. `sumCents()` multiplies the error by the quantity.",
+      "empirical": "allowed",
+      "expect": "refuted",
+      "expect_empirical": true,
+      "why": "A runtime-behavior claim that one allowlisted command settles: `node --test tests/js/money.test.mjs` (added by this change) asserts `toCents('19.99') === 1999` and passes, because line 10 uses `Math.round`. The dispatch opts in with `empirical: allowed`, so the verdict block must carry `empirical: <command> → exit <code>`, not `empirical: none`. The float premise is half-true (the product really is 1998.99…), which is what makes running it better than arguing it."
+    },
+    {
+      "id": 12,
+      "name": "blocking-refuted-no-citation-naming-inference",
+      "severity": "blocking",
+      "location": "app/Http/Controllers/InvoiceDispatchController.php:16",
+      "claim": "`send()` delivers the invoice e-mail synchronously inside the HTTP request: `notify()` opens an SMTP connection per call, so the endpoint hangs whenever the mail server is slow.",
+      "reasoning": "`InvoiceNotifier::notify()` is the mail notifier by its name, and it is called inline instead of being dispatched to a queue, so delivery happens in-request.",
+      "expect": "refuted",
+      "expect_reason_contains": "no-citation",
+      "why": "The claim is about runtime behavior (SMTP, synchronous delivery) and rests entirely on a method name. `App\\Contracts\\InvoiceNotifier` is an interface with no implementation and no container binding anywhere in the repo, so there is no `file:line` that exhibits an SMTP call. The citation rule refutes it with reason `no-citation` rather than letting the name stand in for code."
     }
   ]
 }

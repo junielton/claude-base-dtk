@@ -6,9 +6,12 @@
 # commit), runs the agent's own instructions against each labeled finding, and
 # compares the returned verdict to the expected one.
 #
+# Docs and recorded results: README.markdown next to this script (not README.md: every
+# *.md under agents/ loads as an agent definition).
+#
 # Usage:
-#   ./run.sh                      # all cases, default model
-#   ./run.sh --model opus         # pick the model
+#   ./run.sh                      # all cases, on the agent's frontmatter model
+#   ./run.sh --model opus         # override the model
 #   ./run.sh --case 4,6           # only these case ids
 #   ./run.sh --jobs 1             # serialize (default 4)
 #   ./run.sh --keep               # keep the temp repo and raw outputs for inspection
@@ -46,6 +49,13 @@ for bin in jq git claude; do
 done
 [ -f "$CASES" ] || { echo "missing $CASES" >&2; exit 2; }
 [ -f "$AGENT" ] || { echo "missing agent definition: $AGENT" >&2; exit 2; }
+
+# Default to the model the agent's frontmatter pins, so the suite measures what the review
+# skills actually dispatch. `inherit` (or no model line) falls back to the session default.
+if [ -z "$MODEL" ]; then
+    MODEL="$(awk '/^---[[:space:]]*$/{fm++; next} fm==1 && /^model:/{sub(/^model:[[:space:]]*/, ""); sub(/[[:space:]]*#.*/, ""); print; exit}' "$AGENT")"
+    [ "$MODEL" = "inherit" ] && MODEL=""
+fi
 
 WORK="$(mktemp -d -t dtk-verifier-eval.XXXXXX)"
 REPO="$WORK/repo"
@@ -108,39 +118,68 @@ fi
 
 run_case() {
     local id="$1"
-    local c severity location claim reasoning payload raw verdict suggested
+    local c severity location claim reasoning empirical payload raw verdict suggested blind emp reason
+    local -a tools
 
     c="$(jq -c --argjson i "$id" '.cases[] | select(.id == $i)' "$CASES")"
     severity="$(jq -r '.severity' <<<"$c")"
     location="$(jq -r '.location' <<<"$c")"
     claim="$(jq -r '.claim' <<<"$c")"
     reasoning="$(jq -r '.reasoning' <<<"$c")"
+    empirical="$(jq -r '.empirical // "off"' <<<"$c")"
 
+    # Same shape the review skills dispatch: reasoning last, under its own heading, so the
+    # agent can form its blind verdict before reading it.
     payload="Verify this single code-review finding.
 
 severity:  $severity
 location:  $location
 claim:     $claim
-reasoning: $reasoning
-scope:     $SCOPE"
+scope:     $SCOPE
+empirical: $empirical
+
+--- reasoning (read only after recording blind_verdict) ---
+$reasoning"
+
+    tools=(Read Grep Glob
+        "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git status:*)")
+    # The empirical allowlist is granted only to cases whose dispatch opts in.
+    if [ "$empirical" = "allowed" ]; then
+        tools+=("Bash(grep:*)" "Bash(rg:*)" "Bash(git grep:*)" "Bash(git blame:*)"
+            "Bash(php -l:*)" "Bash(node -e:*)" "Bash(node --check:*)" "Bash(node --test:*)"
+            "Bash(python3 -c:*)")
+    fi
 
     # CLAUDECODE is unset so this nests cleanly when the harness itself runs inside Claude Code.
     raw="$(cd "$REPO" && env -u CLAUDECODE -u CLAUDE_CODE_SSE_PORT \
         timeout "$TIMEOUT" claude -p "$payload" \
             --append-system-prompt-file "$BODY" \
             ${MODEL:+--model "$MODEL"} \
-            --allowed-tools Read Grep Glob \
-                "Bash(git diff:*)" "Bash(git log:*)" "Bash(git show:*)" "Bash(git status:*)" \
+            --allowed-tools "${tools[@]}" \
             2>&1)"
 
     printf '%s\n' "$raw" > "$OUT/case-$id.txt"
 
-    verdict="$(grep -oiE 'verdict:[[:space:]]*(real|refuted)' <<<"$raw" | head -1 \
-        | sed -E 's/.*:[[:space:]]*//' | tr '[:upper:]' '[:lower:]')"
-    suggested="$(grep -oiE 'suggested-severity:[[:space:]]*(blocking|non-blocking|question)' <<<"$raw" \
-        | head -1 | sed -E 's/.*:[[:space:]]*//' | tr '[:upper:]' '[:lower:]')"
+    # v2 block: final_verdict / blind_verdict. Fall back to a bare `verdict:` line so an
+    # older verifier definition can still be A/B-ed with --agent.
+    verdict="$(field final_verdict '(real|refuted)' <<<"$raw")"
+    [ -n "$verdict" ] || verdict="$(field verdict '(real|refuted)' <<<"$raw")"
+    blind="$(field blind_verdict '(real|refuted)' <<<"$raw")"
+    suggested="$(field suggested-severity '(blocking|non-blocking|question)' <<<"$raw")"
+    emp="$(grep -iE '^[[:space:]`]*empirical:' <<<"$raw" | head -1 | sed -E 's/^[^:]*:[[:space:]]*//')"
+    reason="$(grep -iE '^[[:space:]`]*reason:' <<<"$raw" | head -1 | sed -E 's/^[^:]*:[[:space:]]*//')"
 
-    printf '%s\t%s\t%s\n' "$id" "${verdict:-PARSE_ERROR}" "${suggested:-}" > "$OUT/case-$id.tsv"
+    # \x1f, not a tab: a tab is IFS whitespace, so `read` would collapse empty fields.
+    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' "$id" "${verdict:-PARSE_ERROR}" "${suggested:-}" \
+        "${blind:-}" "${emp:-}" "${reason:-}" > "$OUT/case-$id.tsv"
+}
+
+# field <name> <value-regex> — value of the first `name: value` line, lowercased. Anchored
+# to the line start (tolerating fences, bullets, bold) so `verdict` never matches inside
+# `blind_verdict`.
+field() {
+    grep -oiE "^[[:space:]\`*-]*$1[*]*:[*[:space:]]*$2" | head -1 \
+        | grep -oiE "$2\$" | tr '[:upper:]' '[:lower:]'
 }
 
 echo "agent   : $AGENT"
@@ -162,19 +201,22 @@ wait
 
 # -------------------------------------------------------------------- scoring
 pass=0; fail=0
-printf '%-4s %-46s %-9s %-9s %s\n' "ID" "CASE" "EXPECT" "GOT" "RESULT"
-printf '%s\n' "--------------------------------------------------------------------------------------"
+printf '%-4s %-54s %-9s %-9s %-9s %s\n' "ID" "CASE" "EXPECT" "BLIND" "GOT" "RESULT"
+printf '%s\n' "--------------------------------------------------------------------------------------------------------"
 
 for id in $IDS; do
     c="$(jq -c --argjson i "$id" '.cases[] | select(.id == $i)' "$CASES")"
     name="$(jq -r '.name' <<<"$c")"
     expect="$(jq -r '.expect' <<<"$c")"
     want_sev="$(jq -r '.expect_suggested_severity // ""' <<<"$c")"
+    want_blind="$(jq -r '.expect_blind_verdict // ""' <<<"$c")"
+    want_emp="$(jq -r '.expect_empirical // false' <<<"$c")"
+    want_reason="$(jq -r '.expect_reason_contains // ""' <<<"$c")"
 
     if [ -f "$OUT/case-$id.tsv" ]; then
-        IFS=$'\t' read -r _ got got_sev < "$OUT/case-$id.tsv"
+        IFS=$'\x1f' read -r _ got got_sev got_blind got_emp got_reason < "$OUT/case-$id.tsv"
     else
-        got="NO_OUTPUT"; got_sev=""
+        got="NO_OUTPUT"; got_sev=""; got_blind=""; got_emp=""; got_reason=""
     fi
 
     result="PASS"
@@ -182,10 +224,16 @@ for id in $IDS; do
         result="FAIL"
     elif [ -n "$want_sev" ] && [ "$got_sev" != "$want_sev" ]; then
         result="FAIL (severity: wanted $want_sev, got ${got_sev:-none})"
+    elif [ -n "$want_blind" ] && [ "$got_blind" != "$want_blind" ]; then
+        result="FAIL (blind_verdict: wanted $want_blind, got ${got_blind:-none})"
+    elif [ "$want_emp" = "true" ] && ! grep -qiE 'exit[[:space:]]*-?[0-9]+' <<<"$got_emp"; then
+        result="FAIL (empirical: wanted '<command> → exit <code>', got '${got_emp:-missing}')"
+    elif [ -n "$want_reason" ] && ! grep -qiF -- "$want_reason" <<<"$got_reason"; then
+        result="FAIL (reason: wanted '$want_reason', got '${got_reason:-missing}')"
     fi
 
     [ "${result:0:4}" = "PASS" ] && pass=$((pass + 1)) || fail=$((fail + 1))
-    printf '%-4s %-46s %-9s %-9s %s\n' "$id" "$name" "$expect" "$got" "$result"
+    printf '%-4s %-54s %-9s %-9s %-9s %s\n' "$id" "$name" "$expect" "${got_blind:--}" "$got" "$result"
 done
 
 echo
@@ -197,7 +245,7 @@ fn=0; fp=0
 for id in $IDS; do
     c="$(jq -c --argjson i "$id" '.cases[] | select(.id == $i)' "$CASES")"
     expect="$(jq -r '.expect' <<<"$c")"
-    [ -f "$OUT/case-$id.tsv" ] && IFS=$'\t' read -r _ got _ < "$OUT/case-$id.tsv" || got="NO_OUTPUT"
+    [ -f "$OUT/case-$id.tsv" ] && IFS=$'\x1f' read -r _ got _ _ _ _ < "$OUT/case-$id.tsv" || got="NO_OUTPUT"
     [ "$expect" = "real" ] && [ "$got" = "refuted" ] && fn=$((fn + 1))
     [ "$expect" = "refuted" ] && [ "$got" = "real" ] && fp=$((fp + 1))
 done
