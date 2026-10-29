@@ -1,0 +1,150 @@
+#!/bin/bash
+#
+# Loads lessons from docs/lessons/ for use by review skills.
+#
+# Usage:
+#   bash scripts/review/lessons-loader.sh --json      # Index with paths and categories
+#   bash scripts/review/lessons-loader.sh --content    # Full content of all lessons
+#   bash scripts/review/lessons-loader.sh --category security  # Filter by category
+#   bash scripts/review/lessons-loader.sh --content --include-candidates  # Also candidates
+#
+# Lifecycle: a lesson's frontmatter `status:` is candidate | active | retired.
+# Only `active` lessons load by default; --include-candidates adds `candidate`;
+# `retired` never loads. A lesson with no `status:` (written before the
+# lifecycle existed, or an auto-memory file) counts as `active`.
+#
+# Searches in order:
+#   1. docs/lessons/ (dtk standard — version-controlled)
+#   2. .claude/projects/*/memory/lessons-*.md (Claude auto-memory fallback)
+
+set -euo pipefail
+
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+CATEGORY=""
+MODE="list"  # list | content | json
+INCLUDE_CANDIDATES=false
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --category) CATEGORY="$2"; shift 2 ;;
+    --list) MODE="list"; shift ;;
+    --content) MODE="content"; shift ;;
+    --json) MODE="json"; shift ;;
+    --include-candidates) INCLUDE_CANDIDATES=true; shift ;;
+    *) shift ;;
+  esac
+done
+
+DOCS_LESSONS="${PROJECT_ROOT}/docs/lessons"
+FOUND_FILES=()
+
+# Strategy 1: docs/lessons/ (preferred)
+if [[ -d "$DOCS_LESSONS" ]]; then
+  if [[ -n "$CATEGORY" ]]; then
+    while IFS= read -r file; do
+      FOUND_FILES+=("$file")
+    done < <(find "${DOCS_LESSONS}/${CATEGORY}" -name "*.md" ! -name "index.md" 2>/dev/null | sort)
+  else
+    while IFS= read -r file; do
+      FOUND_FILES+=("$file")
+    done < <(find "$DOCS_LESSONS" -name "*.md" ! -name "index.md" 2>/dev/null | sort)
+  fi
+fi
+
+# Strategy 2: Claude auto-memory fallback
+if [[ ${#FOUND_FILES[@]} -eq 0 ]]; then
+  # Derive the project path key Claude uses
+  PROJECT_KEY=$(echo "$PROJECT_ROOT" | sed 's|/|-|g; s|^-||')
+  CLAUDE_MEMORY_DIR="$HOME/.claude/projects/${PROJECT_KEY}/memory"
+
+  if [[ -d "$CLAUDE_MEMORY_DIR" ]]; then
+    if [[ -n "$CATEGORY" ]]; then
+      while IFS= read -r file; do
+        FOUND_FILES+=("$file")
+      done < <(find "$CLAUDE_MEMORY_DIR" -name "lessons-${CATEGORY}*.md" 2>/dev/null | sort)
+    else
+      while IFS= read -r file; do
+        FOUND_FILES+=("$file")
+      done < <(find "$CLAUDE_MEMORY_DIR" -name "lessons-*.md" 2>/dev/null | sort)
+    fi
+  fi
+fi
+
+# Status from the leading frontmatter block; missing status → active.
+lesson_status() {
+  awk 'NR == 1 && $0 != "---" { exit }
+       NR > 1 && $0 == "---" { exit }
+       NR > 1 && /^status:/ { sub(/^status:[ \t]*/, ""); sub(/[ \t]+#.*$/, ""); gsub(/["\047 \t\r]/, ""); print tolower($0); exit }' "$1"
+}
+
+LOADED=()
+for f in ${FOUND_FILES[@]+"${FOUND_FILES[@]}"}; do
+  st=$(lesson_status "$f")
+  case "${st:-active}" in
+    active) LOADED+=("$f") ;;
+    candidate) $INCLUDE_CANDIDATES && LOADED+=("$f") ;;
+  esac
+done
+FOUND_FILES=(${LOADED[@]+"${LOADED[@]}"})
+
+case "$MODE" in
+  list)
+    if [[ ${#FOUND_FILES[@]} -eq 0 ]]; then
+      echo "No lessons found."
+      exit 0
+    fi
+    for f in "${FOUND_FILES[@]}"; do
+      echo "$f"
+    done
+    ;;
+
+  content)
+    if [[ ${#FOUND_FILES[@]} -eq 0 ]]; then
+      echo "No lessons found."
+      exit 0
+    fi
+    for f in "${FOUND_FILES[@]}"; do
+      echo "=== $(basename "$f") ==="
+      cat "$f"
+      echo ""
+    done
+    ;;
+
+  json)
+    echo "{"
+    echo "  \"source\": \"$([ -d "$DOCS_LESSONS" ] && echo "docs/lessons" || echo "claude-auto-memory")\","
+    echo "  \"count\": ${#FOUND_FILES[@]},"
+    echo "  \"categories\": ["
+
+    # List unique categories
+    CATEGORIES=()
+    for f in "${FOUND_FILES[@]}"; do
+      dir=$(dirname "$f")
+      cat_name=$(basename "$dir")
+      if [[ ! " ${CATEGORIES[*]:-} " =~ " ${cat_name} " ]]; then
+        CATEGORIES+=("$cat_name")
+      fi
+    done
+
+    FIRST=true
+    for cat in "${CATEGORIES[@]}"; do
+      $FIRST || echo ","
+      FIRST=false
+      COUNT=$(printf '%s\n' "${FOUND_FILES[@]}" | grep "/${cat}/" | wc -l)
+      printf '    {"name": "%s", "count": %d}' "$cat" "$COUNT"
+    done
+    echo ""
+    echo "  ],"
+
+    echo "  \"files\": ["
+    FIRST=true
+    for f in "${FOUND_FILES[@]}"; do
+      $FIRST || echo ","
+      FIRST=false
+      printf '    "%s"' "$f"
+    done
+    echo ""
+    echo "  ]"
+    echo "}"
+    ;;
+esac

@@ -8,8 +8,8 @@ description: "Use when the user wants to SEE a UI proposal before it is built â€
 Author an approved visual contract as **one file per screen**, flows that click through,
 and a thin review index â€” so the user can study one screen alone, walk a journey like the
 real app, and approve screen by screen. The format is `references/mockup-convention.md`:
-read it first, every time. Templates are in `templates/`, the gate is
-`scripts/check-mockup.mjs` (both resolved from `$MK`, step 4).
+read it first, every time. Templates are in `templates/` (resolved from `$MK`), the gate is
+`$SCRIPTS/mockup/check-mockup.mjs` (both set in step 4).
 
 ## Process
 
@@ -62,8 +62,10 @@ composition, never from new values. Anatomy fixes have no creative axis.
 ### 4. Check
 
 ```bash
-MK="${CLAUDE_PLUGIN_ROOT:-}/skills/create-mockup"; [ -d "$MK" ] || MK=$(ls -d ~/.claude/plugins/cache/dtk-marketplace/dtk/*/skills/create-mockup 2>/dev/null | sort -V | tail -1); echo "$MK"
-node $MK/scripts/check-mockup.mjs docs/design/<slug> --tokens-source <tokensFrom>
+# resolver idiom: docs/conventions/script-resolution.md
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
+MK="${CLAUDE_PLUGIN_ROOT}/skills/create-mockup"; echo "$MK"
+node $SCRIPTS/mockup/check-mockup.mjs docs/design/<slug> --tokens-source <tokensFrom>
 ```
 
 Zero errors before the user sees anything. Read every warning to them (an unclickable flow

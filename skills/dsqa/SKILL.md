@@ -25,7 +25,8 @@ Compares a Figma component specification against a running browser implementatio
 ## Step 0: Resolve Scripts
 
 ```bash
-SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+# resolver idiom: docs/conventions/script-resolution.md
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 
 Use the output path as `$SCRIPTS` for all script commands below.
@@ -37,10 +38,17 @@ Scripts live in `$SCRIPTS/dsqa/`:
 - `deep-inspect.mjs` — Extracts full style tree (2 levels deep) for layout debugging
 
 ```bash
-bash $SCRIPTS/dsqa/check-deps.sh || npm install --save-dev puppeteer pngjs pixelmatch
+bash $SCRIPTS/dsqa/check-deps.sh --install
 ```
 
 If scripts aren't found, fall back to **Playwright MCP method** (see Layer 2 fallback below).
+
+### Dependency cache and comparison assumptions
+
+- **Cache:** `${XDG_CACHE_HOME:-$HOME/.cache}/dtk` — one pinned `package.json` plus `node_modules` (puppeteer, pngjs, pixelmatch). Installed once by `check-deps.sh --install`, reused by every run, shared with `mockup-qa`. Nothing is written to the user's project: its `package.json`, lockfile and `node_modules` stay untouched.
+- **Clear it:** `rm -rf ~/.cache/dtk` (or `"$XDG_CACHE_HOME/dtk"`). The next `--install` rebuilds it; the first install also downloads Chromium (puppeteer's own cache, `~/.cache/puppeteer`).
+- **Comparison assumptions:** both images must share the same viewport (`--viewport WxH`, default `1440x900`), `deviceScaleFactor` **1** (fixed by the script, so a Figma reference export must be 1x) and the same element crop (`element.screenshot()` of the selector). If sizes differ the script crops both to the smaller common size and reports `sizeDifference`; non-null means crop or scale is misaligned and the pixel % is not trustworthy. `pixelmatch` runs with `threshold 0.1`, anti-aliasing ignored.
+- **Alignment is tested:** `node --test 'scripts/dsqa/tests/*.test.mjs'` renders a fixture pair at 1280×800 and asserts 0% for identical pages and >0% for a 4px shift.
 
 ## Workflow
 

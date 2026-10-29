@@ -33,7 +33,7 @@ Change 2 and 3 must hold **after** the voice pass: the voice skill shapes words,
 
 ### U1 — `review-publish`: verdict, tone lint, suggestion blocks, payload eval
 
-Files: `skills/review-publish/SKILL.md`, `bin/skill-scripts/review/post-review.sh`, new `bin/skill-scripts/review/tone-lint.sh`, new `skills/review-publish/evals/` (cases, fixtures, `run.sh`, `grade.py` or `grade.sh`, `README.md`).
+Files: `skills/review-publish/SKILL.md`, `scripts/review/post-review.sh`, new `scripts/review/tone-lint.sh`, new `skills/review-publish/evals/` (cases, fixtures, `run.sh`, `grade.py` or `grade.sh`, `README.md`).
 
 Method, as steps (the repo ships no CLAUDE.md; this is the method for this unit): the first commit on the branch is the eval suite failing against the current skill, with the failing counts in `evals/README.md`; the implementation commits follow; the last commit updates the README with the new counts. `git log` must show that order.
 
@@ -62,7 +62,7 @@ Scope: only the files above.
 
 ### U3 — review outcomes script
 
-Files: new `bin/skill-scripts/review/outcomes.py` (python3 stdlib + `gh`), new `docs/review-outcomes.md`.
+Files: new `scripts/review/outcomes.py` (python3 stdlib + `gh`), new `docs/review-outcomes.md`.
 
 - [ ] AC-1 — `outcomes.py owner/repo --limit 50 [--since YYYY-MM-DD] [--reviewer login]` fetches PRs via `gh api graphql` (reviews, review threads with comments, commits) and prints: comments per tag (Q/CR/FFT/NIT/untagged) per reviewer; hedge count and `suggestion` count per reviewer (same regex as `tone-lint.sh`, read from it or duplicated with a comment pointing there); review verdicts per reviewer; for each tag, acceptance by the author's reply text (accepted markers: "good catch", "done", "fixed", "added", a 7-hex sha; declined: "keeping", "intended", "not for this PR", "already"), with open PRs excluded from "no reply" — verify: test (run on `bythepixel/transwest-web --limit 50`) — source: case study §8
 - [ ] AC-2 — the run on `bythepixel/transwest-web --limit 50 --reviewer junielton` reproduces the 2026-10-20 baseline within ±2: hedge 56, optional 9, suggestion 0, CR as REQUEST_CHANGES 0/6 — verify: test — source: case study §8 table

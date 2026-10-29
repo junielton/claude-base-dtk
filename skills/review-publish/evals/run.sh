@@ -79,12 +79,12 @@ DIFF="$SCRIPT_DIR/$(jq -r '.diff' "$CASES")"
 
 # Scripts the skill calls. For --baseline, the pre-change post-review.sh and no tone-lint.sh.
 SCRIPTS_SRC="$WORK/scripts-src"
-cp -r "$REPO_ROOT/bin/skill-scripts" "$SCRIPTS_SRC"
+cp -r "$REPO_ROOT/scripts" "$SCRIPTS_SRC"
 if [ "$BASELINE" -eq 1 ]; then
     cp "$SCRIPT_DIR/baseline/post-review.sh" "$SCRIPTS_SRC/review/post-review.sh"
     rm -f "$SCRIPTS_SRC/review/tone-lint.sh"
 fi
-LINT="$REPO_ROOT/bin/skill-scripts/review/tone-lint.sh"
+LINT="$REPO_ROOT/scripts/review/tone-lint.sh"
 
 # Skill body without the YAML frontmatter: this is what is under test.
 BODY_TPL="$WORK/skill-body.md"
@@ -107,20 +107,20 @@ run_one() {
     pr="$(jq -r --arg i "$id" '.cases[] | select(.id == $i) | .pr' "$CASES")"
     dir="$WORK/runs/$id-$k"
     log="$dir/gh.log"
-    mkdir -p "$dir/bin" "$dir/memories/reviews/PR-$pr"
+    mkdir -p "$dir/memories/reviews/PR-$pr"
 
-    cp -r "$SCRIPTS_SRC" "$dir/bin/skill-scripts"
+    cp -r "$SCRIPTS_SRC" "$dir/scripts"
     cp "$SCRIPT_DIR/$(jq -r --arg i "$id" '.cases[] | select(.id == $i) | .report' "$CASES")" \
         "$dir/memories/reviews/PR-$pr/peer-review-1.md"
 
     # Guard 1: post-review.sh always runs as a dry run.
-    mv "$dir/bin/skill-scripts/review/post-review.sh" "$dir/bin/skill-scripts/review/post-review.real.sh"
-    cat > "$dir/bin/skill-scripts/review/post-review.sh" <<'WRAP'
+    mv "$dir/scripts/review/post-review.sh" "$dir/scripts/review/post-review.real.sh"
+    cat > "$dir/scripts/review/post-review.sh" <<'WRAP'
 #!/usr/bin/env bash
 here="$(cd "$(dirname "$0")" && pwd)"
 bash "$here/post-review.real.sh" "$@" --dry-run
 rc=$?
-echo "exit=$rc" >> "$here/../../../post-review.calls"
+echo "exit=$rc" >> "$here/../../post-review.calls"
 exit $rc
 WRAP
 
@@ -128,7 +128,7 @@ WRAP
     sed "s/\$ARGUMENTS/$pr/g" "$BODY_TPL" > "$body"
 
     prompt="Publish the review for PR #$pr, following the review-publish skill in your system prompt.
-This is a non-interactive run in a sandbox directory (repo acme/shop, which has no git remote here) that holds memories/reviews/PR-$pr/peer-review-1.md and bin/skill-scripts/. Step 0 is already done: SCRIPTS is bin/skill-scripts, so write that literal path in your commands (the sandbox refuses shell variables, command substitution and compound commands, so run one simple command per Bash call: no ;, &&, || or pipes). Do steps 1 to 5 only: build publish-1.json, do the voice pass, and run the dry run until it is clean. Stop there: no confirmation gate, no AskUserQuestion, no steps 6, 7 or 8. Nothing is ever posted. Finish with one line."
+This is a non-interactive run in a sandbox directory (repo acme/shop, which has no git remote here) that holds memories/reviews/PR-$pr/peer-review-1.md and scripts/. Step 0 is already done: SCRIPTS is scripts, so write that literal path in your commands (the sandbox refuses shell variables, command substitution and compound commands, so run one simple command per Bash call: no ;, &&, || or pipes). Do steps 1 to 5 only: build publish-1.json, do the voice pass, and run the dry run until it is clean. Stop there: no confirmation gate, no AskUserQuestion, no steps 6, 7 or 8. Nothing is ever posted. Finish with one line."
 
     # Guards 2-4: stub gh first on PATH, dead tokens, explicit allowlist, no MCP servers.
     (cd "$dir" && env -u CLAUDECODE -u CLAUDE_CODE_SSE_PORT -u GH_ENTERPRISE_TOKEN \

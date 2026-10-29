@@ -1,0 +1,87 @@
+name: CI
+
+# Fast, offline checks only. The paid suites that call the Claude CLI
+# (agents/evals, skills/*/evals) are deliberately never run here.
+on:
+  pull_request:
+  push:
+    branches: [main, 'feat/**']
+
+concurrency:
+  # head_ref (PR) and ref_name (push) are the same branch name, so the
+  # push + pull_request pair on a feat/** branch shares one group.
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Scripts live in scripts/; the bin/skill-scripts fallback keeps CI correct
+      # on branches cut before the layout change.
+      - name: Resolve scripts directory
+        run: |
+          if [ -d scripts ]; then D=scripts; else D=bin/skill-scripts; fi
+          echo "SCRIPTS_DIR=$D" >> "$GITHUB_ENV"
+          echo "Scripts directory: $D"
+
+      - name: review-publish tests
+        run: bash skills/review-publish/tests/run-tests.sh
+
+      - name: design-panel tests
+        run: node --test "$SCRIPTS_DIR"/design-panel/tests/*.test.mjs
+
+      - name: outcomes.py self-test
+        run: python3 "$SCRIPTS_DIR"/review/outcomes.py --self-test
+
+      # The validator needs no API key. If the CLI cannot be installed
+      # (registry/network), warn and skip instead of failing the run.
+      # The version is pinned: an unpinned install once validated only
+      # marketplace.json and passed without checking the plugin.
+      - name: Install Claude Code CLI
+        id: cli
+        env:
+          CLAUDE_CLI_VERSION: '2.1.312'
+        run: |
+          if npm install -g "@anthropic-ai/claude-code@${CLAUDE_CLI_VERSION}"; then
+            echo "installed=true" >> "$GITHUB_OUTPUT"
+            claude --version
+          else
+            echo "installed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=plugin validate skipped::Claude Code CLI could not be installed; skipping plugin validation."
+          fi
+
+      - name: Validate plugin
+        if: steps.cli.outputs.installed == 'true'
+        run: |
+          claude --version
+          set +e
+          out=$(claude plugin validate --strict . 2>&1)
+          rc=$?
+          set -e
+          printf '%s\n' "$out"
+          # A pass that only checked marketplace.json proves nothing about the plugin.
+          if ! grep -Eq '^(Validating (plugin manifest|agent|skill|command|hook)|Plugin directory checks)' <<<"$out"; then
+            echo "::error title=plugin validate incomplete::Output shows only the marketplace manifest was checked, not the plugin."
+            exit 1
+          fi
+          exit "$rc"
+
+      - name: Validate plugin (skipped)
+        if: steps.cli.outputs.installed != 'true'
+        run: echo "::notice title=plugin validate skipped::Claude Code CLI install failed; validation not run."

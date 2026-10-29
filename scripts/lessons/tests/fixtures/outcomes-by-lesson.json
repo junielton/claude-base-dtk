@@ -1,0 +1,7 @@
+{
+  "_comment": "Synthetic. Shape B: counts already aggregated per lesson.",
+  "lessons": {
+    "code-patterns/001-legacy-no-frontmatter.md": { "refuted-by-verifier": 2, "marked-wrong": 1, "accepted": 0 },
+    "security/001-parameterize-raw-queries.md": { "refuted-by-verifier": 1, "accepted": 0 }
+  }
+}

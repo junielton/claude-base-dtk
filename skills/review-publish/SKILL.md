@@ -26,7 +26,8 @@ The one rule everything below enforces: **the GitHub text contains the verdict a
 ## Step 0: Resolve Scripts
 
 ```bash
-SCRIPTS="bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS="${CLAUDE_PLUGIN_ROOT:-}/bin/skill-scripts"; [ -d "$SCRIPTS" ] || SCRIPTS=$(find ~/.claude/plugins -path "*/dtk/bin/skill-scripts" -maxdepth 5 2>/dev/null | head -1); echo "$SCRIPTS"
+# resolver idiom: docs/conventions/script-resolution.md
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 
 ## Workflow
@@ -41,10 +42,12 @@ ls -t memories/reviews/PR-$ARGUMENTS/peer-review-*.md | head -1
 Read the latest `peer-review-N.md` (or the path the user gave). Take ONLY these sections into the payload:
 
 - `## Recommendation`
-- `## 🔴 Blocking`
-- `## 🟡 Non-blocking`
-- `## 💬 Questions`
+- `## ✗ Blocking`
+- `## ! Non-blocking`
+- `## ? Questions`
 - the verifier line in `Final Summary` (how many findings were kept)
+
+Match each section by its word (`Recommendation`, `Blocking`, `Non-blocking`, `Questions`), not by the marker in front of it: reports saved before the current vocabulary carry an emoji there (`${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`).
 
 Never carry into the payload: `Existing Review Comments`, `Lessons Applied`, `Reconciliation with Previous Reviews`, `Still pending`, `Resolved since last review`, CI state, rebase notes, or anything from `review-state.md`. Those are the reviewer's memory, not the author's business. An old item that is still pending already has an open thread; re-posting it is noise.
 
@@ -52,8 +55,8 @@ Never carry into the payload: `Existing Review Comments`, `Lessons Applied`, `Re
 
 | Report | `event` |
 |--------|---------|
-| Any 🔴 finding survived verification | `REQUEST_CHANGES` |
-| Only 🟡 and 💬, or nothing | `APPROVE` |
+| Any Blocking finding survived verification | `REQUEST_CHANGES` |
+| Only Non-blocking and Questions, or nothing | `APPROVE` |
 
 A CR is a request the author must answer, and under `COMMENT` it is one they can decline (they did, twice in 6). The inline carries the content; the verdict carries the block. `COMMENT` is never chosen here; it exists only for the gate's "no verdict, inline only" option, and only when no CR is posted.
 
@@ -76,7 +79,7 @@ Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
 }
 ```
 
-**Inline comments.** One per finding that the verifier kept. Tag from the bucket: 🔴 → `CR`, 🟡 → `FFT`, 💬 → `Q`. Each body:
+**Inline comments.** One per finding that the verifier kept. Tag from the bucket: Blocking → `CR`, Non-blocking → `FFT`, Questions → `Q`. Each body:
 
 - starts with the tag and a colon (`CR: `, `FFT: `, `Q: `)
 - is at most two sentences, and states the ask directly: "I'd …", "worth …", "this needs …", plus the reason. The humility lives in the reason and in the tag (FFT already says non-blocking), never in the ask

@@ -1,0 +1,24 @@
+{
+  "_comment": "Synthetic. Shape A: one row per review finding that cited a lesson.",
+  "findings": [
+    { "lesson": "docs/lessons/security/001-parameterize-raw-queries.md", "outcome": "refuted-by-verifier" },
+    { "lesson": "security/001-parameterize-raw-queries.md", "outcome": "marked-wrong" },
+    { "lesson": "security/001-parameterize-raw-queries", "outcome": "refuted" },
+    { "lesson": "security/001-parameterize-raw-queries.md", "outcome": "no_reply" },
+
+    { "lessons": ["code-patterns/001-legacy-no-frontmatter.md"], "outcome": "refuted-by-verifier" },
+    { "lessons": ["code-patterns/001-legacy-no-frontmatter.md"], "outcome": "refuted-by-verifier" },
+    { "lessons": ["code-patterns/001-legacy-no-frontmatter.md"], "outcome": "marked_wrong" },
+    { "lessons": ["code-patterns/001-legacy-no-frontmatter.md"], "outcome": "accepted" },
+
+    { "lesson": "001-validate-empty-payloads.md", "outcome": "marked-wrong" },
+    { "lesson": "qa/001-validate-empty-payloads.md", "outcome": "marked-wrong" },
+    { "lesson": "qa/001-validate-empty-payloads.md", "outcome": "marked-wrong" },
+
+    { "lesson": "performance/001-cache-every-query.md", "outcome": "refuted" },
+    { "lesson": "performance/001-cache-every-query.md", "outcome": "refuted" },
+    { "lesson": "performance/001-cache-every-query.md", "outcome": "refuted" },
+
+    { "lesson": "frontend/404-not-a-lesson.md", "outcome": "refuted" }
+  ]
+}
