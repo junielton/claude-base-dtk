@@ -109,6 +109,33 @@ jobs:
           cat .claude-plugin/plugin.json
           cat .claude-plugin/marketplace.json
 
+      - name: Prepend CHANGELOG section
+        if: steps.skip_check.outputs.skip == 'false' && steps.bump.outputs.bump != 'none'
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+
+          {
+            echo "## [${NEW_VERSION}] - $(date -u +%F)"
+            echo
+            git log "${LAST_TAG}..HEAD" --no-merges --pretty=tformat:"- %s" \
+              | grep -v '^- chore: bump version' || true
+            echo
+          } > section.md
+
+          # Insert the new section above the newest existing one (keeps the intro on top)
+          if grep -q '^## \[' CHANGELOG.md; then
+            awk 'FNR==NR { sec = sec $0 "\n"; next }
+                 !done && /^## \[/ { printf "%s", sec; done = 1 }
+                 { print }' section.md CHANGELOG.md > CHANGELOG.new
+          else
+            { cat CHANGELOG.md; echo; cat section.md; } > CHANGELOG.new
+          fi
+          mv CHANGELOG.new CHANGELOG.md
+          rm section.md
+
+          head -20 CHANGELOG.md
+
       - name: Commit and tag
         if: steps.skip_check.outputs.skip == 'false' && steps.bump.outputs.bump != 'none'
         run: |
@@ -117,10 +144,27 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
+          git add .claude-plugin/plugin.json .claude-plugin/marketplace.json CHANGELOG.md
           git commit -m "chore: bump version to ${NEW_VERSION} [skip ci]"
           git tag "v${NEW_VERSION}"
           git push origin main --tags
+
+      - name: Create GitHub Release
+        if: steps.skip_check.outputs.skip == 'false' && steps.bump.outputs.bump != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VERSION="${{ steps.new_version.outputs.version }}"
+          LAST_TAG="${{ steps.last_tag.outputs.tag }}"
+
+          # LAST_TAG is a root commit sha when the repo has no version tag yet
+          if git rev-parse -q --verify "refs/tags/${LAST_TAG}" >/dev/null; then
+            gh release create "v${NEW_VERSION}" --title "v${NEW_VERSION}" \
+              --generate-notes --notes-start-tag "${LAST_TAG}" --verify-tag
+          else
+            gh release create "v${NEW_VERSION}" --title "v${NEW_VERSION}" \
+              --generate-notes --verify-tag
+          fi
 
       - name: Summary
         if: always()

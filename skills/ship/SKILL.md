@@ -77,7 +77,7 @@ auto-detected. It works in any repo with `git` + `gh`.
    author responding to feedback on your own, so it doesn't apply.) Skip this
    step entirely when no reviewer comments exist.
 9. **Notify** → announce the outcome with the first available notifier, checked
-   in order: `speak-notify "<msg>"`, then `say "<msg>"` (macOS), then
+   in order: `say "<msg>"` (macOS), then
    `spd-say "<msg>"` (Linux speech-dispatcher), then
    `notify-send "ship" "<msg>"` (Linux desktop), then a plain printed line if
    none exist. Message like `PR ready: <repo>#<number>`. Also notify when the
@@ -130,5 +130,5 @@ Chains `/dtk:review-local`, `/dtk:smart-commit`, `/dtk:create-pr`, `/dtk:review`
 report). PR creation and edits go through `create-pr` / `gh pr edit`. Reviewer
 replies use a plain author-reply register (no external voice skill required).
 Requires `git` and an authenticated `gh` CLI. The end-of-run notifier is
-auto-detected (`speak-notify` / `say` / `spd-say` / `notify-send` / print), so no
+auto-detected (`say` / `spd-say` / `notify-send` / print), so no
 machine-specific setup is assumed.

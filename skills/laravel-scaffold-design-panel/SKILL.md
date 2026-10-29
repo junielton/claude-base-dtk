@@ -64,8 +64,8 @@ ONLY by:
 
     node <plugin>/bin/skill-scripts/design-panel/write-manifest.mjs --root <projectRoot> --slug <slug> ...
 
-`dtk:implement-design` calls it after DSQA approval; `dtk:update-design`
-maintains the `sync` block. Never hand-edit a manifest.
+Nothing else in the plugin calls it yet (`dtk:implement-design` does not write
+manifests). Never hand-edit a manifest.
 
 ## Common Mistakes
 
