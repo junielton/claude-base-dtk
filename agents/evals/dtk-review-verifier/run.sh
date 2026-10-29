@@ -175,7 +175,7 @@ $reasoning"
         timeout "$TIMEOUT" claude -p "$payload" \
             --append-system-prompt-file "$BODY" \
             ${MODEL:+--model "$MODEL"} \
-            "${fmt[@]}" \
+            ${fmt[@]+"${fmt[@]}"} \
             --allowed-tools "${tools[@]}" \
             2>&1)"
 
