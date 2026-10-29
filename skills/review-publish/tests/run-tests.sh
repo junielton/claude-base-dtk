@@ -13,8 +13,8 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-LINT="$ROOT/bin/skill-scripts/review/tone-lint.sh"
-POST="$ROOT/bin/skill-scripts/review/post-review.sh"
+LINT="$ROOT/scripts/review/tone-lint.sh"
+POST="$ROOT/scripts/review/post-review.sh"
 PAY="$HERE/payloads"
 EVALS="$HERE/../evals"
 

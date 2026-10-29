@@ -7,9 +7,9 @@ CR comments posted under a CHANGES_REQUESTED review, and, per tag, whether the
 PR author's reply accepted or declined the comment.
 
 Usage:
-  python3 bin/skill-scripts/review/outcomes.py owner/repo --limit 50 \
+  python3 scripts/review/outcomes.py owner/repo --limit 50 \
       [--since YYYY-MM-DD] [--reviewer login] [--json]
-  python3 bin/skill-scripts/review/outcomes.py --self-test
+  python3 scripts/review/outcomes.py --self-test
 
 Needs `gh` already authenticated (`gh auth login`); no token is read or stored.
 Method and baseline: docs/specs/2026-10-20-review-case-study.md section 8,
@@ -26,7 +26,7 @@ from collections import Counter, defaultdict
 TAGS = ("Q", "CR", "FFT", "NIT", "untagged")
 
 # Banned phrases from docs/specs/2026-10-20-review-tone-and-evals.md, Changes 2.
-# Keep in sync with bin/skill-scripts/review/tone-lint.sh once that lands (U1).
+# Keep in sync with scripts/review/tone-lint.sh once that lands (U1).
 # Split in two groups so the numbers line up with the case study table:
 # "hedges" and "marked optional".
 HEDGE_PHRASES = ("might be worth", "maybe", "could be worth")

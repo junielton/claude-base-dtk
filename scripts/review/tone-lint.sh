@@ -10,7 +10,7 @@
 #   cr-needs-request-changes  a `CR:` comment under an event other than REQUEST_CHANGES
 #
 # Usage:
-#   bash bin/skill-scripts/review/tone-lint.sh --payload <file.json>
+#   bash scripts/review/tone-lint.sh --payload <file.json>
 #
 # Exit: 0 clean, 1 violations, 2 usage error.
 

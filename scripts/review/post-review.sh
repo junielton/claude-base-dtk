@@ -7,7 +7,7 @@
 # in the PR diff, because GitHub rejects the whole review with a 422 otherwise.
 #
 # Usage:
-#   bash bin/skill-scripts/review/post-review.sh --payload <file.json> [--dry-run]
+#   bash scripts/review/post-review.sh --payload <file.json> [--dry-run]
 
 set -euo pipefail
 

@@ -30,7 +30,11 @@ The panel ships its own standalone Blade shell, so no project layout is required
 
 Run the installer from the plugin:
 
-    node <plugin>/bin/skill-scripts/design-panel/install-design-panel.mjs --root <projectRoot>
+    # resolver idiom: docs/conventions/script-resolution.md
+    SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
+    node "$SCRIPTS/design-panel/install-design-panel.mjs" --root <projectRoot>
+
+Use the output path as `$SCRIPTS` for all script commands below.
 
 Read the JSON report:
 
@@ -62,7 +66,7 @@ test results, panel URL.
 The install seeds `design/manifests/` (+ JSON Schema). Manifests are written
 ONLY by:
 
-    node <plugin>/bin/skill-scripts/design-panel/write-manifest.mjs --root <projectRoot> --slug <slug> ...
+    node "$SCRIPTS/design-panel/write-manifest.mjs" --root <projectRoot> --slug <slug> ...
 
 Nothing else in the plugin calls it yet (`dtk:implement-design` does not write
 manifests). Never hand-edit a manifest.

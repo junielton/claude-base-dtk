@@ -1,6 +1,6 @@
 #!/bin/bash
 # Gathers all uncommitted changes (staged, unstaged, untracked) as JSON.
-# Usage: bash bin/skill-scripts/commit/gather-changes.sh
+# Usage: bash scripts/commit/gather-changes.sh
 #
 # Output: JSON object with staged, unstaged, and untracked arrays.
 

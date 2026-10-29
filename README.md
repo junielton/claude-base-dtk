@@ -86,7 +86,7 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 
 ### HTML mockups (no Figma)
 
-A visual contract authored as HTML inside the project: `docs/design/<slug>/` with `mockup.json` (status per screen), one `screens/<id>.html` per screen (states via `?state=`, flows via `data-goto` navigating between files), optional `parts/`, the project's tokens copied verbatim, and a thin `index.html` that only embeds. `skills/create-mockup/scripts/check-mockup.mjs` is the mechanical gate the three skills share.
+A visual contract authored as HTML inside the project: `docs/design/<slug>/` with `mockup.json` (status per screen), one `screens/<id>.html` per screen (states via `?state=`, flows via `data-goto` navigating between files), optional `parts/`, the project's tokens copied verbatim, and a thin `index.html` that only embeds. `scripts/mockup/check-mockup.mjs` is the mechanical gate the three skills share.
 
 | Skill | Command | Description |
 |-------|---------|-------------|
@@ -96,7 +96,7 @@ A visual contract authored as HTML inside the project: `docs/design/<slug>/` wit
 
 ## Scripts
 
-Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by domain. Scripts run from the installed plugin — no project setup required.
+Skills delegate reusable logic to scripts in `scripts/`, organized by domain. Scripts run from the installed plugin — no project setup required. Every skill resolves the folder with one line, documented in [`docs/conventions/script-resolution.md`](docs/conventions/script-resolution.md).
 
 | Directory | Scripts | Used by |
 |-----------|---------|---------|
@@ -106,6 +106,11 @@ Skills delegate reusable logic to scripts in `bin/skill-scripts/`, organized by 
 | `adr/` | `next-number.sh` | adr |
 | `commit/` | `gather-changes.sh` | smart-commit |
 | `shared/` | `figma-url-parser.sh` | dsqa, implement-design |
+| `pr/` | `upload-attachment.sh` | create-pr |
+| `design-panel/` | `install-design-panel.mjs`, `write-manifest.mjs` | laravel-scaffold-design-panel |
+| `mockup/` | `check-mockup.mjs` | create-mockup, implement-mockup, mockup-qa |
+| `gh-action/` | `resolve-run.sh` | debug-gh-action |
+| `git-rebase-onto/` | `analyze_branches.sh`, `safe_rebase_onto.sh`, `conflict_status.sh` | git-rebase-onto |
 
 ## Project structure used by the skills
 

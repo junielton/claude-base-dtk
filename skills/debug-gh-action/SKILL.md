@@ -20,7 +20,9 @@ through the steps below in order.
 (optionally with `/job/<job_id>` and/or a `?query=string`), run:
 
 ```bash
-scripts/resolve-run.sh "<url>"
+# resolver idiom: docs/conventions/script-resolution.md
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
+"$SCRIPTS/gh-action/resolve-run.sh" "<url>"
 ```
 
 It prints JSON with `owner`, `repo`, `run_id`, and a `jobs` array — one entry per
@@ -42,7 +44,7 @@ red" — you need to find the run yourself before you can use the script:
   checks, several recent failed runs), **ask the user which one** rather than
   guessing — a wrong guess wastes a full debugging cycle on the wrong problem.
 
-Once you have a concrete run/job URL, feed it to `scripts/resolve-run.sh` just like
+Once you have a concrete run/job URL, feed it to `$SCRIPTS/gh-action/resolve-run.sh` just like
 the explicit case. The script needs `gh` (authenticated with access to the repo)
 and `jq`; if either is missing, fall back to the manual calls it wraps —
 `gh api repos/<owner>/<repo>/actions/runs/<run_id>/jobs` to list jobs and their
@@ -135,7 +137,7 @@ confirm the previously failing job actually went green before calling it fixed.
 
 ## Reference
 
-`scripts/resolve-run.sh` — see the comment header in the script for its exact
+`$SCRIPTS/gh-action/resolve-run.sh` — see the comment header in the script for its exact
 input/output contract. It only handles explicit `actions/runs/...` URLs; PR links
 and vague "my build failed" requests need to be resolved to a run URL first (Step
 1) before the script is useful.

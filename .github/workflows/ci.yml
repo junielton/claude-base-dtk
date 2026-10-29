@@ -32,8 +32,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Scripts live in bin/skill-scripts today and move to scripts/ with the
-      # layout change; pick whichever exists so CI is correct on both sides.
+      # Scripts live in scripts/; the bin/skill-scripts fallback keeps CI correct
+      # on branches cut before the layout change.
       - name: Resolve scripts directory
         run: |
           if [ -d scripts ]; then D=scripts; else D=bin/skill-scripts; fi

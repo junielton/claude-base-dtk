@@ -1,6 +1,6 @@
 #!/bin/bash
 # Shared helpers for the lessons tests. Paths resolve from this file, so the
-# suite keeps working if bin/skill-scripts/ is renamed to scripts/.
+# suite keeps working wherever scripts/ is checked out or moved.
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LESSONS_SCRIPTS="$(cd "$TESTS_DIR/.." && pwd)"
 SKILL_SCRIPTS="$(cd "$LESSONS_SCRIPTS/.." && pwd)"

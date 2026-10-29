@@ -21,8 +21,10 @@ Resolve, asking only for what the card or conversation does not give: the mockup
 the dev URL where each screen renders, and the project's run/build commands.
 
 ```bash
-MK="${CLAUDE_PLUGIN_ROOT:-}/skills/create-mockup"; [ -d "$MK" ] || MK=$(ls -d ~/.claude/plugins/cache/dtk-marketplace/dtk/*/skills/create-mockup 2>/dev/null | sort -V | tail -1); echo "$MK"
-node $MK/scripts/check-mockup.mjs <folder> --tokens-source <tokensFrom>
+# resolver idiom: docs/conventions/script-resolution.md
+SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
+MK="${CLAUDE_PLUGIN_ROOT}/skills/create-mockup"; echo "$MK"
+node $SCRIPTS/mockup/check-mockup.mjs <folder> --tokens-source <tokensFrom>
 ```
 
 Errors → stop and route to `/dtk:create-mockup`. Then parse `mockup.json`:

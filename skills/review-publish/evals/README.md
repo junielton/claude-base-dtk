@@ -27,7 +27,7 @@ The unit tests for `tone-lint.sh` and its wiring in `post-review.sh` are separat
 ## How it works
 
 1. Each run gets a throwaway directory holding `memories/reviews/PR-N/peer-review-1.md` (the
-   fixture report) and a copy of `bin/skill-scripts/`.
+   fixture report) and a copy of `scripts/`.
 2. The skill body (`SKILL.md`, frontmatter stripped, `$ARGUMENTS` replaced by the PR number) is
    injected with `claude -p --append-system-prompt-file`. The prompt asks for steps 1 to 5 only:
    build `publish-1.json`, do the voice pass, run the dry run until clean, stop.
@@ -164,7 +164,7 @@ Sample 1 failed twice, for two different reasons:
 
 Read this with two limits in mind. The `a-1` miss was fixed in the skill after it showed up on
 these fixtures, so 15 / 15 is partly tuned to them; a fresh PR is the real test, and
-`bin/skill-scripts/review/outcomes.py` (U3) is the production metric. And 3 runs per case catch a
+`scripts/review/outcomes.py` (U3) is the production metric. And 3 runs per case catch a
 rule the skill ignores, not a 1-in-10 slip.
 
 ### Unit tests

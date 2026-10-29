@@ -1,12 +1,12 @@
 # Review outcomes
 
-How reviews posted through `/dtk:review-peer` → `/dtk:review-publish` behave in production: tone (hedges, `suggestion` blocks), verdicts, and whether the author accepted the comment. Produced by `bin/skill-scripts/review/outcomes.py`; background and the reasoning behind the four tone changes are in [`specs/2026-10-20-review-case-study.md`](specs/2026-10-20-review-case-study.md) §8 and [`specs/2026-10-20-review-tone-and-evals.md`](specs/2026-10-20-review-tone-and-evals.md).
+How reviews posted through `/dtk:review-peer` → `/dtk:review-publish` behave in production: tone (hedges, `suggestion` blocks), verdicts, and whether the author accepted the comment. Produced by `scripts/review/outcomes.py`; background and the reasoning behind the four tone changes are in [`specs/2026-10-20-review-case-study.md`](specs/2026-10-20-review-case-study.md) §8 and [`specs/2026-10-20-review-tone-and-evals.md`](specs/2026-10-20-review-tone-and-evals.md).
 
 ## Run it
 
 ```bash
-python3 bin/skill-scripts/review/outcomes.py owner/repo --limit 50 [--since YYYY-MM-DD] [--reviewer login] [--json]
-python3 bin/skill-scripts/review/outcomes.py --self-test   # offline check of the classifiers
+python3 scripts/review/outcomes.py owner/repo --limit 50 [--since YYYY-MM-DD] [--reviewer login] [--json]
+python3 scripts/review/outcomes.py --self-test   # offline check of the classifiers
 ```
 
 Python 3 stdlib plus `gh` (already logged in with `gh auth login`). No token is read or stored. It reads the most recent `--limit` PRs of any state, one GraphQL query per PR (reviews, review threads with comments, commits). The full 50-PR run takes about 1–2 minutes per repo.
@@ -63,7 +63,7 @@ Last 50 PRs of each repo, read 2026-10-20. Reviewer verdict names are GitHub's (
 ### owner/repo-a, reviewer `reviewer-a`
 
 ```bash
-python3 bin/skill-scripts/review/outcomes.py owner/repo-a --limit 50 --reviewer reviewer-a
+python3 scripts/review/outcomes.py owner/repo-a --limit 50 --reviewer reviewer-a
 ```
 
 #### reviewer-a  (n=165 inline comments)
@@ -98,7 +98,7 @@ Acceptance by the author's reply (open PRs without a reply are `pending`, not `n
 ### owner/repo-b, reviewer `reviewer-b` (the human reference)
 
 ```bash
-python3 bin/skill-scripts/review/outcomes.py owner/repo-b --limit 50 --reviewer reviewer-b
+python3 scripts/review/outcomes.py owner/repo-b --limit 50 --reviewer reviewer-b
 ```
 
 #### reviewer-b  (n=57 inline comments)
