@@ -1,11 +1,23 @@
 ---
 name: learn-from-review
-description: "Use after completing a code review session to extract actionable lessons and persist them as individual files in docs/lessons/."
+description: "Extracts actionable lessons from a finished code review and saves each as a file in docs/lessons/, with a lifecycle (candidate, active, retired) and an export of active lessons into REVIEW.md and .github/copilot-instructions.md so Copilot, CodeRabbit, Greptile and Claude review follow them too. Use after /dtk:review, /dtk:review-local or /dtk:review-peer, or when the user says 'save this lesson', 'learn from this review', 'remember this for future reviews', 'salva essa lição', 'aprende com essa review', 'guarda isso pras próximas reviews', or asks to promote, retire or re-export lessons. Do NOT use for architecture decisions (dtk:adr), for personal memory unrelated to code review, or for writing rules into CLAUDE.md."
 ---
 
 # Extract Lessons from Code Review
 
 Analyze the current code review session, extract actionable lessons, and persist each one as an individual file in `docs/lessons/{category}/`.
+
+## Lifecycle
+
+Each lesson's frontmatter carries `status` and `source` (written by `create-lesson.sh`):
+
+| status | meaning | loaded into reviews | exported |
+|---|---|---|---|
+| `candidate` | learned from a teammate's PR (`source: peer`); awaits the user's approval | only with `lessons-loader.sh --include-candidates` | no |
+| `active` | learned from the user's own review (`source: own`), or a promoted candidate | yes | yes |
+| `retired` | proven wrong by review outcomes | never | no |
+
+A lesson with no `status:` (written before the lifecycle) counts as `active`. To promote a candidate, change its `status: candidate` to `status: active`, then re-run the export (Step 5).
 
 ## Step 0: Resolve Scripts
 
@@ -68,15 +80,15 @@ bash $SCRIPTS/lessons/create-lesson.sh \
 
 ## Step 4: Persist Each Lesson
 
-For each new lesson (that passed the duplicate check), create a file:
+For each new lesson (that passed the duplicate check), create a file. Pass `--source peer` when the session was `/dtk:review-peer` (a teammate's PR), `--source own` for `/dtk:review` and `/dtk:review-local`:
 
 ```bash
 echo '<lesson content in Step 2 format>' | bash $SCRIPTS/lessons/create-lesson.sh \
-  --category <category> --title "<title>" --severity <severity>
+  --category <category> --title "<title>" --severity <severity> --source <own|peer>
 ```
 
 The script will:
-1. Create `docs/lessons/{category}/NNN-slug.md` with the content
+1. Create `docs/lessons/{category}/NNN-slug.md` with the content, under a frontmatter of `status` (`own` → `active`, `peer` → `candidate`) and `source`
 2. Update `docs/lessons/index.md` with a new row in the correct category table
 
 **Category directory mapping:**
@@ -91,13 +103,26 @@ The script will:
 | Testing | `testing` |
 | Frontend | `frontend` |
 
-## Step 5: Summary
+## Step 5: Export Active Lessons
+
+After writing the lessons, regenerate the copies other reviewers read:
+
+```bash
+node $SCRIPTS/lessons/export-lessons.mjs
+```
+
+It rewrites only the block between `<!-- dtk:lessons:start -->` and `<!-- dtk:lessons:end -->` in `REVIEW.md` and `.github/copilot-instructions.md` (creating them if absent), never text outside the markers; a second run changes nothing. Copilot reads only the first 4,000 characters of its file, so the export keeps that whole file ≤ 4,000 chars (`--copilot-cap N` to change), most severe lessons first, the rest summarized in one "…and N more" line. Do not commit these files for the user; list them in the summary.
+
+**Retiring:** feed real review outcomes to `node $SCRIPTS/lessons/retire-lessons.mjs --outcomes <file.json>` (input shape in the script header). It lists lessons refuted or marked wrong ≥ 3 times (`--min-negative N`) with 0 accepted, and writes `status: retired` only with `--apply`; re-run the export after.
+
+## Step 6: Summary
 
 After creating all lessons, output:
 
 - How many new lessons were created (with file paths)
 - How many duplicates were skipped
 - How many existing lessons were updated (replaced)
+- Each lesson's status (`active` or `candidate`) and the export result per file
 - List of created files:
   ```
   Created: docs/lessons/security/003-sql-injection-db-raw.md

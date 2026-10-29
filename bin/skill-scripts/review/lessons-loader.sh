@@ -6,6 +6,12 @@
 #   bash bin/skill-scripts/review/lessons-loader.sh --json      # Index with paths and categories
 #   bash bin/skill-scripts/review/lessons-loader.sh --content    # Full content of all lessons
 #   bash bin/skill-scripts/review/lessons-loader.sh --category security  # Filter by category
+#   bash bin/skill-scripts/review/lessons-loader.sh --content --include-candidates  # Also candidates
+#
+# Lifecycle: a lesson's frontmatter `status:` is candidate | active | retired.
+# Only `active` lessons load by default; --include-candidates adds `candidate`;
+# `retired` never loads. A lesson with no `status:` (written before the
+# lifecycle existed, or an auto-memory file) counts as `active`.
 #
 # Searches in order:
 #   1. docs/lessons/ (dtk standard — version-controlled)
@@ -16,6 +22,7 @@ set -euo pipefail
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 CATEGORY=""
 MODE="list"  # list | content | json
+INCLUDE_CANDIDATES=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -23,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     --list) MODE="list"; shift ;;
     --content) MODE="content"; shift ;;
     --json) MODE="json"; shift ;;
+    --include-candidates) INCLUDE_CANDIDATES=true; shift ;;
     *) shift ;;
   esac
 done
@@ -61,6 +69,23 @@ if [[ ${#FOUND_FILES[@]} -eq 0 ]]; then
     fi
   fi
 fi
+
+# Status from the leading frontmatter block; missing status → active.
+lesson_status() {
+  awk 'NR == 1 && $0 != "---" { exit }
+       NR > 1 && $0 == "---" { exit }
+       NR > 1 && /^status:/ { sub(/^status:[ \t]*/, ""); sub(/[ \t]+#.*$/, ""); gsub(/["\047 \t\r]/, ""); print tolower($0); exit }' "$1"
+}
+
+LOADED=()
+for f in ${FOUND_FILES[@]+"${FOUND_FILES[@]}"}; do
+  st=$(lesson_status "$f")
+  case "${st:-active}" in
+    active) LOADED+=("$f") ;;
+    candidate) $INCLUDE_CANDIDATES && LOADED+=("$f") ;;
+  esac
+done
+FOUND_FILES=(${LOADED[@]+"${LOADED[@]}"})
 
 case "$MODE" in
   list)

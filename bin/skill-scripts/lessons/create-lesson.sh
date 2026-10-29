@@ -5,13 +5,20 @@
 #
 # Usage:
 #   echo "<lesson content>" | bash bin/skill-scripts/lessons/create-lesson.sh \
-#     --category security --title "SQL Injection in DB Raw" --severity Critical
+#     --category security --title "SQL Injection in DB Raw" --severity Critical --source own
 #
 # Options:
 #   --category   One of: security, code-patterns, qa, performance, framework, testing, frontend
 #   --title      Short descriptive title for the lesson
 #   --severity   One of: Critical, High, Medium, Low
+#   --source     own (default) | peer. Where the lesson came from: the user's own review
+#                (review / review-local) or a review of a teammate's PR (review-peer).
+#                Sets the lifecycle status in the frontmatter: own → active, peer → candidate.
 #   --check-dup  If set, searches existing lessons for similar title (prints match and exits 1)
+#
+# Each file opens with a frontmatter block (status: candidate | active | retired,
+# source: own | peer) followed by the lesson body. Content piped in that already
+# opens with `---` is written as-is.
 #
 # Output: path to the created file (or duplicate match if --check-dup finds one)
 
@@ -23,6 +30,7 @@ LESSONS_DIR="${PROJECT_ROOT}/docs/lessons"
 CATEGORY=""
 TITLE=""
 SEVERITY=""
+SOURCE="own"
 CHECK_DUP=false
 
 while [[ $# -gt 0 ]]; do
@@ -30,6 +38,7 @@ while [[ $# -gt 0 ]]; do
     --category) CATEGORY="$2"; shift 2 ;;
     --title) TITLE="$2"; shift 2 ;;
     --severity) SEVERITY="$2"; shift 2 ;;
+    --source) SOURCE="$2"; shift 2 ;;
     --check-dup) CHECK_DUP=true; shift ;;
     *) shift ;;
   esac
@@ -52,6 +61,12 @@ if [[ -z "$SEVERITY" ]]; then
   exit 1
 fi
 
+case "$SOURCE" in
+  own) STATUS="active" ;;
+  peer) STATUS="candidate" ;;
+  *) echo "Error: --source must be own or peer" >&2; exit 1 ;;
+esac
+
 # Generate slug from title
 SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//')
 
@@ -67,7 +82,8 @@ if [[ "$CHECK_DUP" = true ]]; then
     [[ "$(basename "$existing")" == "index.md" ]] && continue
 
     # Check title similarity (case-insensitive first-line match)
-    EXISTING_TITLE=$(head -1 "$existing" | sed 's/^### //')
+    # Title = first `### ` heading, so a leading frontmatter block is skipped
+    EXISTING_TITLE=$(grep -m1 '^### ' "$existing" | sed 's/^### //' || true)
     if echo "$EXISTING_TITLE" | grep -qi "$(echo "$TITLE" | sed 's/[^a-zA-Z0-9 ]//g')"; then
       echo "DUPLICATE:${existing}"
       exit 1
@@ -84,7 +100,12 @@ NEXT=$(printf "%03d" $((10#${LAST:-0} + 1)))
 
 # Create lesson file
 LESSON_FILE="${CATEGORY_DIR}/${NEXT}-${SLUG}.md"
-cat > "$LESSON_FILE"
+CONTENT=$(cat)
+if [[ "$CONTENT" == ---* ]]; then
+  printf '%s\n' "$CONTENT" > "$LESSON_FILE"
+else
+  printf -- '---\nstatus: %s\nsource: %s\n---\n%s\n' "$STATUS" "$SOURCE" "$CONTENT" > "$LESSON_FILE"
+fi
 
 # Update index.md
 INDEX_FILE="${LESSONS_DIR}/index.md"
