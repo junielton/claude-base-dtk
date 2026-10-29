@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs every lessons test (offline, built-ins only).
-#   bash bin/skill-scripts/lessons/tests/run-tests.sh
+#   bash scripts/lessons/tests/run-tests.sh
 set -u
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATUS=0

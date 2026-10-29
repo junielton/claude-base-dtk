@@ -3,7 +3,7 @@
 // Every visual-QA tool asserts that both sides share crop, scale and viewport;
 // this is the first test that proves the diff script actually notices a shift.
 //
-//   node --test 'bin/skill-scripts/dsqa/tests/*.test.mjs'
+//   node --test 'scripts/dsqa/tests/*.test.mjs'
 //
 // Needs puppeteer/pngjs/pixelmatch from the plugin cache (check-deps.sh --install)
 // and a Chromium. If either cannot be provided the tests are SKIPPED with the

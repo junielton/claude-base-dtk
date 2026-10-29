@@ -4,7 +4,7 @@
 # and updates docs/lessons/index.md with the new entry.
 #
 # Usage:
-#   echo "<lesson content>" | bash bin/skill-scripts/lessons/create-lesson.sh \
+#   echo "<lesson content>" | bash scripts/lessons/create-lesson.sh \
 #     --category security --title "SQL Injection in DB Raw" --severity Critical --source own
 #
 # Options:

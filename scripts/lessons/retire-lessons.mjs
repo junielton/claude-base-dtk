@@ -2,7 +2,7 @@
 // Proposes retiring lessons that real review outcomes keep proving wrong.
 //
 // Usage:
-//   node bin/skill-scripts/lessons/retire-lessons.mjs --outcomes <file.json | -> \
+//   node scripts/lessons/retire-lessons.mjs --outcomes <file.json | -> \
 //     [--min-negative 3] [--lessons <dir>] [--apply]
 //
 // Rule: a lesson (status active or candidate) is proposed for `retired` when its findings

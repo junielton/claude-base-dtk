@@ -2,7 +2,7 @@
 // Exports active lessons into files other code reviewers already read.
 //
 // Usage:
-//   node bin/skill-scripts/lessons/export-lessons.mjs [--repo <dir>] [--lessons <dir>] [--copilot-cap 4000]
+//   node scripts/lessons/export-lessons.mjs [--repo <dir>] [--lessons <dir>] [--copilot-cap 4000]
 //
 // Targets, in the repo root (default: git toplevel of the cwd):
 //   REVIEW.md                         read by Anthropic managed review; indexed by CodeRabbit/Greptile

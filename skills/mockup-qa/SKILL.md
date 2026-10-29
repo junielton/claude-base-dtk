@@ -26,7 +26,7 @@ Checker errors → the mockup is not a valid contract; stop and say so.
 - **Cache:** `${XDG_CACHE_HOME:-$HOME/.cache}/dtk` — one pinned `package.json` plus `node_modules` (puppeteer, pngjs, pixelmatch). Installed once by `check-deps.sh --install`, reused by every run, shared with `dsqa`. Nothing is written to the user's project: its `package.json`, lockfile and `node_modules` stay untouched.
 - **Clear it:** `rm -rf ~/.cache/dtk` (or `"$XDG_CACHE_HOME/dtk"`). The next `--install` rebuilds it; the first install also downloads Chromium (puppeteer's own cache, `~/.cache/puppeteer`).
 - **Comparison assumptions:** the mockup capture and the app capture must share the same viewport (`--viewport <w>x900` per screen), `deviceScaleFactor` **1** (fixed by the script) and the same element crop (`element.screenshot()` of the selector). A non-null `sizeDifference` in the result means crop or scale is misaligned and the pixel % must not be trusted. `pixelmatch` runs with `threshold 0.1`, anti-aliasing ignored.
-- **Alignment is tested:** `node --test 'bin/skill-scripts/dsqa/tests/*.test.mjs'` renders a fixture pair at 1280×800 and asserts 0% for identical pages and >0% for a 4px shift.
+- **Alignment is tested:** `node --test 'scripts/dsqa/tests/*.test.mjs'` renders a fixture pair at 1280×800 and asserts 0% for identical pages and >0% for a 4px shift.
 
 ## 1. Resolve inputs
 
