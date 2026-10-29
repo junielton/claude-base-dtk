@@ -83,26 +83,30 @@ BASE_BRANCH="$(jq -r '.fixture.base_branch' "$CASES")"
 HEAD_BRANCH="$(jq -r '.fixture.head_branch' "$CASES")"
 SCOPE="$(jq -r '.fixture.scope' "$CASES")"
 
-build_repo() {
-    cd "$REPO" || exit 2
+# build_repo <dest> <fixture dir> [base msg] [change msg] — base commit from <fixture>/before,
+# change commit from <fixture>/after. Runs in a subshell so the cd does not leak.
+build_repo() (
+    cd "$1" || exit 2
     git init -q -b "$BASE_BRANCH"
     git config user.email "eval@dtk.local"
     git config user.name "dtk eval"
     git config commit.gpgsign false
 
-    cp -r "$FIXTURE/before/." .
+    cp -r "$2/before/." .
     git add -A
-    git commit -qm "baseline: orders, legacy report, money helper, event router"
+    git commit -qm "${3:-baseline}"
 
     git checkout -q -b "$HEAD_BRANCH"
     git rm -rq --cached . >/dev/null
     find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-    cp -r "$FIXTURE/after/." .
+    cp -r "$2/after/." .
     git add -A
-    git commit -qm "feat: order listing, invoice endpoints, user search"
-}
+    git commit -qm "${4:-feat: the change under review}"
+)
 
-build_repo || { echo "failed to build fixture repo" >&2; exit 2; }
+build_repo "$REPO" "$FIXTURE" \
+    "baseline: orders, legacy report, money helper, event router" \
+    "feat: order listing, invoice endpoints, user search" || { echo "failed to build fixture repo" >&2; exit 2; }
 
 # ------------------------------------------------------------------ run cases
 IDS="$(jq -r '.cases[].id' "$CASES")"
@@ -116,10 +120,17 @@ if [ -n "$ONLY" ]; then
 fi
 [ -n "${IDS// /}" ] || { echo "no cases selected" >&2; exit 2; }
 
+# A case with "fixture_dir": "<name>" runs in its own repo built from fixture/<name>/.
+for fdir in $(for id in $IDS; do jq -r --argjson i "$id" '.cases[] | select(.id == $i) | .fixture_dir // empty' "$CASES"; done | sort -u); do
+    mkdir -p "$WORK/repo-$fdir"
+    build_repo "$WORK/repo-$fdir" "$FIXTURE/$fdir" || { echo "failed to build fixture $fdir" >&2; exit 2; }
+done
+
 run_case() {
     local id="$1"
     local c severity location claim reasoning empirical payload raw verdict suggested blind emp reason
-    local -a tools
+    local repo fdir no_cmd
+    local -a tools fmt
 
     c="$(jq -c --argjson i "$id" '.cases[] | select(.id == $i)' "$CASES")"
     severity="$(jq -r '.severity' <<<"$c")"
@@ -127,6 +138,10 @@ run_case() {
     claim="$(jq -r '.claim' <<<"$c")"
     reasoning="$(jq -r '.reasoning' <<<"$c")"
     empirical="$(jq -r '.empirical // "off"' <<<"$c")"
+    fdir="$(jq -r '.fixture_dir // ""' <<<"$c")"
+    no_cmd="$(jq -r '.expect_no_command // ""' <<<"$c")"
+    repo="$REPO"
+    [ -n "$fdir" ] && repo="$WORK/repo-$fdir"
 
     # Same shape the review skills dispatch: reasoning last, under its own heading, so the
     # agent can form its blind verdict before reading it.
@@ -147,16 +162,31 @@ $reasoning"
     if [ "$empirical" = "allowed" ]; then
         tools+=("Bash(grep:*)" "Bash(rg:*)" "Bash(git grep:*)" "Bash(git blame:*)"
             "Bash(php -l:*)" "Bash(node -e:*)" "Bash(node --check:*)" "Bash(node --test:*)"
-            "Bash(python3 -c:*)")
+            "Bash(python3 -c:*)" "Bash(command -v:*)")
     fi
 
+    # A case that pins a command it must NOT attempt needs the JSON result, whose
+    # permission_denials list every tool call the allowlist refused. Other cases keep text.
+    fmt=()
+    [ -n "$no_cmd" ] && fmt=(--output-format json)
+
     # CLAUDECODE is unset so this nests cleanly when the harness itself runs inside Claude Code.
-    raw="$(cd "$REPO" && env -u CLAUDECODE -u CLAUDE_CODE_SSE_PORT \
+    raw="$(cd "$repo" && env -u CLAUDECODE -u CLAUDE_CODE_SSE_PORT \
         timeout "$TIMEOUT" claude -p "$payload" \
             --append-system-prompt-file "$BODY" \
             ${MODEL:+--model "$MODEL"} \
+            ${fmt[@]+"${fmt[@]}"} \
             --allowed-tools "${tools[@]}" \
             2>&1)"
+
+    if [ -n "$no_cmd" ]; then
+        printf '%s\n' "$raw" > "$OUT/case-$id.json"
+        if jq -e . >/dev/null 2>&1 <<<"$raw"; then
+            jq -r '.permission_denials[]? | select(.tool_name == "Bash") | .tool_input.command' \
+                <<<"$raw" > "$OUT/case-$id.denied"
+            raw="$(jq -r '.result // ""' <<<"$raw")"
+        fi
+    fi
 
     printf '%s\n' "$raw" > "$OUT/case-$id.txt"
 
@@ -212,6 +242,8 @@ for id in $IDS; do
     want_blind="$(jq -r '.expect_blind_verdict // ""' <<<"$c")"
     want_emp="$(jq -r '.expect_empirical // false' <<<"$c")"
     want_reason="$(jq -r '.expect_reason_contains // ""' <<<"$c")"
+    want_emp_none="$(jq -r '.expect_empirical_none // false' <<<"$c")"
+    want_no_cmd="$(jq -r '.expect_no_command // ""' <<<"$c")"
 
     if [ -f "$OUT/case-$id.tsv" ]; then
         IFS=$'\x1f' read -r _ got got_sev got_blind got_emp got_reason < "$OUT/case-$id.tsv"
@@ -228,8 +260,19 @@ for id in $IDS; do
         result="FAIL (blind_verdict: wanted $want_blind, got ${got_blind:-none})"
     elif [ "$want_emp" = "true" ] && ! grep -qiE 'exit[[:space:]]*-?[0-9]+' <<<"$got_emp"; then
         result="FAIL (empirical: wanted '<command> → exit <code>', got '${got_emp:-missing}')"
-    elif [ -n "$want_reason" ] && ! grep -qiF -- "$want_reason" <<<"$got_reason"; then
+    elif [ "$want_emp_none" = "true" ] && ! grep -qiE '^[`*[:space:]]*none' <<<"$got_emp"; then
+        result="FAIL (empirical: wanted 'none — <reason>', got '${got_emp:-missing}')"
+    elif [ "$want_emp_none" = "true" ] && [ -n "$want_reason" ] \
+        && ! grep -qiF -- "$want_reason" <<<"$got_reason $got_emp"; then
+        # The gate's refusal reason belongs on the `empirical: none — …` line, so a case
+        # that expects that refusal searches both lines.
+        result="FAIL (reason/empirical: wanted '$want_reason', got '${got_reason:-missing}' / '${got_emp:-missing}')"
+    elif [ "$want_emp_none" != "true" ] && [ -n "$want_reason" ] && ! grep -qiF -- "$want_reason" <<<"$got_reason"; then
         result="FAIL (reason: wanted '$want_reason', got '${got_reason:-missing}')"
+    elif [ -n "$want_no_cmd" ] && [ ! -f "$OUT/case-$id.denied" ]; then
+        result="FAIL (no command record: the JSON result did not parse)"
+    elif [ -n "$want_no_cmd" ] && grep -qiF -- "$want_no_cmd" "$OUT/case-$id.denied"; then
+        result="FAIL (attempted '$want_no_cmd': $(grep -iF -- "$want_no_cmd" "$OUT/case-$id.denied" | head -1))"
     fi
 
     [ "${result:0:4}" = "PASS" ] && pass=$((pass + 1)) || fail=$((fail + 1))

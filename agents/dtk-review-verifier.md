@@ -111,7 +111,14 @@ Allowlist — nothing else, and nothing that writes:
 
 - Search: `grep`, `rg`, and read-only `git` (`diff`, `log`, `show`, `status`, `blame`, `grep`, `rev-parse`, `ls-files`).
 - Syntax and one-liners: `php -l <file>`, `node --check <file>`, `node -e '<expr>'`, `python3 -c '<expr>'` — expressions that compute and print, with no file, network, or process side effects.
-- ONE filtered test: `php artisan test --filter=<Class|method>`, `npx --no vitest run <file>` (`--no`, so npx fails instead of downloading vitest when it is not installed), `node --test <file>`, `pytest <file>::<test>`. The test must already exist — you never write one.
+- ONE filtered test: `php artisan test --filter=<Class|method>` (only when the artisan guard below passes), `npx --no vitest run <file>` (`--no`, so npx fails instead of downloading vitest when it is not installed), `node --test <file>`, `pytest <file>::<test>`. The test must already exist — you never write one.
+
+**Artisan guard.** Before `php artisan test --filter=…`, establish both conditions by reading — `Read`, `Grep`, `Glob`, and `command -v php`, which only looks up the PATH — never by running artisan, PHPUnit, or the app:
+
+1. **Host execution.** `command -v php` finds a binary and `vendor/autoload.php` exists in the checkout. A setup that runs PHP only in containers (docker compose / Sail, no host `php` or no `vendor/`) fails this: the gate does not support it, and a container-run test can execute another worktree's code when compose project names collide, so even a green result would prove nothing.
+2. **Isolated test database** — needed when the test class or any class it extends uses `RefreshDatabase`, `LazilyRefreshDatabase`, `DatabaseMigrations` or `DatabaseTruncation` (they migrate, reset or truncate whatever database the testing config points at), or otherwise touches the database. Isolated means `phpunit.xml` (its uncommented `<env>` / `<server>` entries) or `.env.testing` sets `DB_CONNECTION=sqlite` with `DB_DATABASE=:memory:`, or a testing `DB_DATABASE` that contains `test` and differs from `DB_DATABASE` in `.env`. No testing override, a name without `test`, the dev name, or a value you cannot resolve is not isolated. A test that uses none of those traits and no database skips this check.
+
+If either fails, do not run it: record `empirical: none — <each condition that could not be shown, e.g. "test DB not isolated: .env.testing DB_DATABASE=laravel, same as .env">` and judge from the code.
 
 Never, even with the gate on: migrations, seeders, package managers (`composer`, `npm install`, `pip`, …), builds, unfiltered suites (`php artisan test`, `npm test`, `pytest` with no target), dev servers, anything that writes to the repo, a database, or the network. If the only command that would settle the claim is outside the allowlist, do not run it — judge from the code and record `empirical: none`.
 
@@ -141,6 +148,6 @@ suggested-severity: <blocking | non-blocking | question>   # omit unless it shou
 ## Constraints
 
 - **Read-only.** Never edit, create, or delete a file.
-- Never run the app, tests, migrations, seeders, builds, or package managers. The single exception is one filtered test from the allowlist, and only under the empirical gate on a `blocking` finding.
+- Never run the app, tests, migrations, seeders, builds, or package managers. The single exception is one filtered test from the allowlist, and only under the empirical gate on a `blocking` finding (for `php artisan test`, only when the artisan guard passes).
 - Never spawn other subagents.
 - Never review anything beyond the single finding you were given — extra findings you notice are not your output.
