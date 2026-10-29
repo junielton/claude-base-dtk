@@ -1,0 +1,10 @@
+#!/usr/bin/env php
+<?php
+
+// Eval fixture stub: there is no framework behind this file. It exists so the tree looks
+// like a Laravel checkout; the harness never grants `php artisan`.
+
+require __DIR__.'/vendor/autoload.php';
+
+fwrite(STDERR, "fixture stub: artisan is not runnable here\n");
+exit(1);

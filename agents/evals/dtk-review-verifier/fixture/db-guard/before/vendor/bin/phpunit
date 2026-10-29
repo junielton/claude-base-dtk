@@ -1,0 +1,8 @@
+#!/usr/bin/env php
+<?php
+
+// Eval fixture stub, not PHPUnit. It exists so the checkout looks installed; the harness
+// never grants a command that would run it.
+
+fwrite(STDERR, "fixture stub: phpunit is not runnable here\n");
+exit(1);
