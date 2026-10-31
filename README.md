@@ -44,9 +44,9 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 | Skill | Command | Description |
 |-------|---------|-------------|
 | **smart-commit** | `/dtk:smart-commit` | Analyzes uncommitted changes, groups related files, and creates organized commits using Conventional Commits |
-| **create-pr** | `/dtk:create-pr` | Opens a GitHub PR with standardized title (`Title (ID)` from the branch name) and description — PR template, base branch, and task-tracker link discovered from the repo at runtime |
+| **create-pr** | `/dtk:create-pr` | Opens a GitHub PR with standardized title (`Title (ID)` from the branch name, including `<prefix>/<ID>-<slug>` branches like `card/T593-…`) and description — PR template, base branch, and task-tracker link discovered from the repo at runtime (plain ID when no tracker pattern exists); UI diffs get agent-captured desktop (1440) and mobile (375) screenshots |
 | **ship** | `/dtk:ship` | Runs the full PR lifecycle autonomously — review-local → smart-commit → create-pr → assign reviewers (CODEOWNERS + Copilot if enabled) → monitor CI + reviews → triage → reply → notify |
-| **git-rebase-onto** | `/dtk:git-rebase-onto [target] [topic]` | Moves a branch onto a new base with `git rebase --onto` — finds the cut point (stacked PRs, squash-merged parents), previews, backs up, rebases, and resolves conflicts conservatively |
+| **git-rebase-onto** | `/dtk:git-rebase-onto [target] [topic] [push]` | Moves a branch onto a new base with `git rebase --onto` — finds the cut point (stacked PRs, squash-merged parents), previews, backs up, rebases, and resolves conflicts conservatively; the `push` argument publishes with `--force-with-lease` without a second confirmation |
 | **debug-gh-action** | `/dtk:debug-gh-action` | Debugs a failing GitHub Actions run end-to-end — resolves the run/job, reads logs, root-causes it, verifies the fix CI-parity, commits/pushes |
 | **report-back** | `/dtk:report-back` | Shared final-report format for multi-step runs: a rail of steps with concrete outcomes, a ledger of what is owed, a links list and a ≤3-line summary |
 | **learn-from-review** | `/dtk:learn-from-review` | Extracts actionable lessons from code review sessions and persists them as individual files in `docs/lessons/` |
@@ -73,8 +73,8 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| **adr** | `/dtk:adr` | Creates Architecture Decision Records in `docs/adrs/` with context, alternatives, and consequences |
-| **prd** | `/dtk:prd` | Generates Product Requirements Documents through interactive refinement, saved to `docs/prds/` |
+| **adr** | `/dtk:adr` | Creates Architecture Decision Records with context, alternatives, and consequences — follows the repo's existing ADR layout, defaulting to `docs/adrs/` |
+| **prd** | `/dtk:prd` | Generates Product Requirements Documents through interactive refinement, saved following the repo's existing PRD layout, defaulting to `docs/prds/` |
 
 ### Design QA
 
