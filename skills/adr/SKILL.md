@@ -5,7 +5,7 @@ description: "Use when making architectural choices, introducing new patterns, c
 
 # /adr — Architecture Decision Record
 
-Capture significant technical decisions and persist them as **individual files** in `docs/adrs/`.
+Capture significant technical decisions and persist them as **individual files** in the repo's ADR directory (default `docs/adrs/`; see Step 4).
 
 ## When to Use
 
@@ -47,17 +47,34 @@ Ask focused questions if critical context is missing (max 3-4 per ADR).
 | **Medium** | Moderate to reverse, affects multiple modules |
 | **Light** | Easy to reverse, single module scope |
 
-## Step 4: Determine Next Number
+## Step 4: Detect the Layout, Determine the Next Number
 
-```bash
-NEXT=$(bash $SCRIPTS/adr/next-number.sh)
-```
+**Detect the repo's convention first.** Glob `docs/adr/`, `docs/adrs/` and
+`docs/decisions/` for `*.md` (ignore `README.md` and `index.md`).
+
+- **ADRs already exist** → follow that convention, whatever it is. Take the most
+  recent file (`git log -1 --format=%H -- <file>`), read its first ~15 lines and
+  copy the **directory**, the **file-name shape** (e.g. `NNNN-<slug>.md`,
+  `ADR-NNN-<slug>.md`) and the **header shape** (title line, status/date
+  fields, section names). Compute `{NNN}` as the highest number found in that
+  directory + 1, padded to the width the existing files use. Do not run
+  `next-number.sh` — it only understands the default layout.
+- **No ADRs anywhere** → use the dtk default: `docs/adrs/ADR-{NNN}-{short-slug}.md`
+  and the template below, with the number from the script:
+
+  ```bash
+  NEXT=$(bash $SCRIPTS/adr/next-number.sh)
+  ```
+
+State which rule applied in one line. Use `{ADR_DIR}` for the resolved directory
+in Steps 5-8.
 
 ## Step 5: Create the ADR File
 
-Path: `docs/adrs/ADR-{NNN}-{short-slug}.md`
+Path: `{ADR_DIR}/{file-name per the detected convention}` — dtk default
+`docs/adrs/ADR-{NNN}-{short-slug}.md`.
 
-### Template
+### Template (dtk default; when the repo has its own header shape, use that instead and keep these sections' content)
 
 ```markdown
 # ADR-{NNN}: {Short descriptive title}
@@ -93,7 +110,7 @@ Path: `docs/adrs/ADR-{NNN}-{short-slug}.md`
 
 ## Step 6: Check Conflicts
 
-1. Read `docs/adrs/index.md`. If it doesn't exist yet (first ADR in the project), create it with this header and skip to Step 7:
+1. Read `{ADR_DIR}/index.md`. If the repo has no ADRs yet, create it with this header and skip to Step 7. If the repo already has ADRs but **no** index, do not create one — skip Step 7:
 
 ```markdown
 # Architecture Decision Records
@@ -107,7 +124,7 @@ Path: `docs/adrs/ADR-{NNN}-{short-slug}.md`
 
 ## Step 7: Update Index
 
-Add row at **top** of `docs/adrs/index.md` (newest first):
+Add row at **top** of `{ADR_DIR}/index.md` (newest first), if the index exists:
 
 ```markdown
 | {NNN} | [{Title}](ADR-{NNN}-{slug}.md) | {Weight} | Accepted | {Date} |
@@ -134,4 +151,5 @@ Add row at **top** of `docs/adrs/index.md` (newest first):
 - Never delete — supersede
 - `Revisit When` is mandatory
 - Write in **English**
+- The repo's existing ADR layout beats the dtk default; never create a second ADR directory next to an existing one
 - Knowledge lives in `docs/` — permanent, version-controlled
