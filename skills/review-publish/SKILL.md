@@ -9,6 +9,8 @@ description: "Use after /dtk:review-peer (or with any saved review report) to tu
 
 Turns a saved review report into the exact payload that goes to GitHub, and posts it. The report decides WHAT is said; this skill decides WHERE each thing goes (body vs inline), the voice skill decides HOW it sounds, and nothing else gets in.
 
+The report's `TL;DR` (what the PR does and its critical facts) is for the user: it is printed above the confirmation gate so the verdict is chosen with the cost, the risk and the unproven claims in view, and it never reaches GitHub.
+
 The one rule everything below enforces: **the GitHub text contains the verdict and the verified findings, and nothing else.** No CI status, no "thanks for the rebase", no narration of what was checked, no status of old threads, no recap of the author's work. The author sees CI and their own threads already.
 
 ## When to Use
@@ -39,7 +41,7 @@ bash $SCRIPTS/review/project-context.sh
 ls -t memories/reviews/PR-$ARGUMENTS/peer-review-*.md | head -1
 ```
 
-Read the latest `peer-review-N.md` (or the path the user gave). Take ONLY these sections into the payload:
+Read the latest `peer-review-N.md` (or the path the user gave). Keep the `## TL;DR` section aside, verbatim: it is printed in step 6 and never enters the payload (not the body, not a comment; `tone-lint.sh` refuses it as `tldr-leak`). Take ONLY these sections into the payload:
 
 - `## Recommendation`
 - `## ✗ Blocking`
@@ -49,7 +51,7 @@ Read the latest `peer-review-N.md` (or the path the user gave). Take ONLY these 
 
 Match each section by its word (`Recommendation`, `Blocking`, `Non-blocking`, `Questions`), not by the marker in front of it: reports saved before the current vocabulary carry an emoji there (`${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`).
 
-Never carry into the payload: `Existing Review Comments`, `Lessons Applied`, `Reconciliation with Previous Reviews`, `Still pending`, `Resolved since last review`, CI state, rebase notes, or anything from `review-state.md`. Those are the reviewer's memory, not the author's business. An old item that is still pending already has an open thread; re-posting it is noise.
+Never carry into the payload: `TL;DR` (the reviewer's read of a body the author wrote), `Existing Review Comments`, `Lessons Applied`, `Reconciliation with Previous Reviews`, `Still pending`, `Resolved since last review`, CI state, rebase notes, or anything from `review-state.md`. Those are the reviewer's memory, not the author's business. An old item that is still pending already has an open thread; re-posting it is noise.
 
 ### 2. Decide the verdict
 
@@ -139,7 +141,7 @@ The resolver returns the user's writing-voice skill, if they have one (see [Voic
 bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json --dry-run
 ```
 
-The dry run runs `tone-lint.sh` first, on the payload as it stands after the voice pass. It fails, and names the rule and the comment, on a banned hedge, a body without a `Q: `/`CR: `/`FFT: ` prefix, an inline over two sentences, or a CR under any event but `REQUEST_CHANGES`. Fix the wording (or the event) and run again; never edit the lint or the list to make a payload pass.
+The dry run runs `tone-lint.sh` first, on the payload as it stands after the voice pass. It fails, and names the rule and the comment, on a banned hedge, a body without a `Q: `/`CR: `/`FFT: ` prefix, an inline over two sentences, a CR under any event but `REQUEST_CHANGES`, or `TL;DR` anywhere in the body or a comment (`tldr-leak`). Fix the wording (or the event) and run again; never edit the lint or the list to make a payload pass.
 
 It also fails, and names the offender, when: `commit_id` is not the current head (the author pushed; re-anchor or re-review), it is not 40 characters, or an inline `line` is not an added line in the PR diff. GitHub rejects the WHOLE review with a 422 on any of these, so nothing is posted until the dry run is clean.
 
@@ -167,6 +169,20 @@ FFT · x.js:17 — <full comment text, tag prefix dropped>
 ```
 
 Because long drafts still overflow the box, also print the same draft as plain text as the last thing in the transcript, right before the `AskUserQuestion` call. The dialog renders below it, so the full draft stays readable above the options.
+
+**The TL;DR comes first.** Right above that plain-text draft, print the report's `## TL;DR` section verbatim (the sentence and its `✗`/`!` lines), under a `TL;DR` line, then a blank line, then the draft:
+
+```
+TL;DR
+Seven tests read the real legacy database by accident; this binds Fakes in them and adds a CI step that runs every shard's suite a second time with a wrong password.
+- ✗ CI cost: every PR runs each shard's tests twice, about 1.5 to 6 minutes more per shard by the author's own numbers (`deploy.yml:97`)
+- ! Not proven: the new step was never run on GitHub (body, AI Assistance)
+
+APPROVE · "Approving, a few notes inline."
+Q · deploy.yml:97 — Nothing asserts the wrong password actually applies ...
+```
+
+It is the executive read the gate exists for: the verdict is chosen with the cost and the unproven claims in view, not from the inline comments alone. The option previews stay as they are (the box cuts at about 5 lines; a TL;DR there would hide the comments). A report saved before the section existed prints `TL;DR: none in this report` in its place.
 
 "Type something" and "Chat about this" are added by Claude Code itself; do not add them as options. Nothing goes to GitHub before a choice here. The gate is on posting, not on drafting.
 
@@ -230,5 +246,7 @@ voice_skill: <name>
 | Abbreviated `commit_id`, or an inline `line` on a context line | Run the dry run; GitHub 422s the whole review |
 | Ending the turn with a prose question | `AskUserQuestion` is the last call of the turn |
 | Summarizing the draft above the gate ("approve with LGTM, no inline") | The verbatim draft goes in the transcript right above the gate AND, dense, in the options' `preview` |
+| Gate printed without the TL;DR | Print the report's `TL;DR` verbatim first, then the draft; the executive read is the point of the gate |
+| TL;DR pasted into the review body or an inline comment | The lint refuses it (`tldr-leak`); it lives above the gate only |
 | A roomy preview (`BODY:` label, blank lines, SHA) | The box cuts at ~5 lines; the comments are what got hidden |
 | Squeezing 10 comments into one 4-option question | Paginate: 4 per question, 3 comment questions per call, then a new call |
