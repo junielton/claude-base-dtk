@@ -51,6 +51,9 @@ expect_lint "rejects a comment with no Q:/CR:/FFT: prefix"  "$PAY/missing-tag-pr
 expect_lint "rejects a comment over two sentences"          "$PAY/three-sentences.json"              1 "too-many-sentences"
 expect_lint "rejects a CR under COMMENT"                    "$PAY/cr-as-comment.json"                1 "cr-needs-request-changes"
 expect_lint "rejects a CR under APPROVE"                    "$PAY/cr-as-approve.json"                1 "cr-needs-request-changes"
+expect_lint "rejects 'TL;DR' in a comment"                  "$PAY/tldr-in-comment.json"              1 "tldr-leak"
+jq '.body = "TL;DR: approving." | .comments = []' "$PAY/clean-approve.json" > "$TMP/tldr-body.json"
+expect_lint "rejects 'TL;DR' in the review body"            "$TMP/tldr-body.json"                    1 "tldr-leak"
 
 # One generated payload per banned phrase, in the body and in a comment, upper-cased to prove case-insensitivity.
 PHRASES=("might be worth" "maybe" "could be worth" "feel free to ignore" "totally optional" "take it or leave it" "fine to leave" "not a big deal" "just a thought")
