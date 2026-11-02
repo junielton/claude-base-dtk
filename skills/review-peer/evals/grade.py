@@ -38,6 +38,17 @@ def parse(text):
     return findings
 
 
+def tldr_lines(text):
+    """Count the `- ` lines inside the `## TL;DR` section (0 when the report has none)."""
+    n, inside = 0, False
+    for line in text.splitlines():
+        if re.match(r"^##\s", line):
+            inside = "tl;dr" in line.lower()
+        elif inside and line.startswith("- "):
+            n += 1
+    return n
+
+
 def matches(exp, f):
     if not re.search(exp["file"], f["heading"], re.I):
         return False
@@ -62,13 +73,14 @@ def main():
     a = ap.parse_args()
 
     exps = json.load(open(a.cases))["expectations"]
-    runs = []
+    runs, tldrs = [], []
     for n in range(1, a.runs + 1):
         try:
-            findings = parse(open(f"{a.dir}/run-{n}.md").read())
+            text = open(f"{a.dir}/run-{n}.md").read()
         except OSError:
-            findings = None
-        runs.append(findings)
+            text = None
+        runs.append(parse(text) if text is not None else None)
+        tldrs.append(tldr_lines(text) if text is not None else 0)
 
     ok = True
     print(f"{'EXPECTATION':<34} {'EXPECT':<19} " + " ".join(f"{'run'+str(n):<13}" for n in range(1, a.runs + 1)) + " PASS")
@@ -96,7 +108,8 @@ def main():
         known = [f for f in findings if any(matches(e, f) for e in exps)]
         extra = [f for f in findings if f not in known]
         print(f"run{n}: {counts['blocking']} blocking / {counts['non-blocking']} non-blocking / {counts['question']} questions"
-              f" — unlabeled: " + ("; ".join(f"[{f['bucket']}] {f['heading'][:60]}" for f in extra) or "none"))
+              f" — unlabeled: " + ("; ".join(f"[{f['bucket']}] {f['heading'][:60]}" for f in extra) or "none")
+              + f" — tldr: {tldrs[n - 1]} lines")
     return 0 if ok else 1
 
 
