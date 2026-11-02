@@ -44,7 +44,7 @@ After installation, all skills are available as `/dtk:<skill-name>`.
 | Skill | Command | Description |
 |-------|---------|-------------|
 | **smart-commit** | `/dtk:smart-commit` | Analyzes uncommitted changes, groups related files, and creates organized commits using Conventional Commits |
-| **create-pr** | `/dtk:create-pr` | Opens a GitHub PR with standardized title (`Title (ID)` from the branch name, including `<prefix>/<ID>-<slug>` branches like `card/T593-…`) and description — PR template, base branch, and task-tracker link discovered from the repo at runtime (plain ID when no tracker pattern exists); UI diffs get agent-captured desktop (1440) and mobile (375) screenshots |
+| **create-pr** | `/dtk:create-pr` | Opens a GitHub PR with standardized title (`Title (ID)` from the branch name, including `<prefix>/<ID>-<slug>` branches like `card/T593-…`) and description — PR template, base branch, and task-tracker link discovered from the repo at runtime (plain ID when no tracker pattern exists); UI diffs get agent-captured desktop (1440) and mobile (375) screenshots; GitHub alerts (`[!WARNING]`, `[!IMPORTANT]`…) for what the reviewer must weigh: cost, risk, what was not tested |
 | **ship** | `/dtk:ship` | Runs the full PR lifecycle autonomously — review-local → smart-commit → create-pr → assign reviewers (CODEOWNERS + Copilot if enabled) → monitor CI + reviews → triage → reply → notify |
 | **git-rebase-onto** | `/dtk:git-rebase-onto [target] [topic] [push]` | Moves a branch onto a new base with `git rebase --onto` — finds the cut point (stacked PRs, squash-merged parents), previews, backs up, rebases, and resolves conflicts conservatively; the `push` argument publishes with `--force-with-lease` without a second confirmation |
 | **debug-gh-action** | `/dtk:debug-gh-action` | Debugs a failing GitHub Actions run end-to-end — resolves the run/job, reads logs, root-causes it, verifies the fix CI-parity, commits/pushes |
@@ -62,7 +62,7 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 |-------|---------|-------------|
 | **review** | `/dtk:review <PR#>` | Reviews your own PR via GitHub MCP — analyzes diff, checks against lessons learned, evaluates comments |
 | **review-local** | `/dtk:review-local [base]` | Reviews all changes on current branch vs base (default: `main`) — works before opening a PR |
-| **review-peer** | `/dtk:review-peer <PR#>` | Reviews someone else's PR and saves the report — blocking/non-blocking/questions, each verified before it is written |
+| **review-peer** | `/dtk:review-peer <PR#>` | Reviews someone else's PR and saves the report — an executive TL;DR with the critical facts (cost, risk, unproven claims), then blocking/non-blocking/questions, each verified before it is written |
 | **review-publish** | `/dtk:review-publish <PR#>` | Turns the saved report into the GitHub review: verdict, one-line body, one inline comment per verified finding (Q/CR/FFT), written through your own voice skill when one exists, anchors validated against the diff, posted only after confirmation |
 
 #### Voice skill

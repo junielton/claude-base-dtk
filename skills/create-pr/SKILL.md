@@ -283,6 +283,61 @@ See: [ADR title](https://github.com/<owner>/<repo>/blob/<branch>/<adr-path>)
 
 Get `<owner>/<repo>` from `gh repo view --json owner,name`.
 
+### Alerts for the reviewer (always run this block)
+
+A reviewer skims a bullet list. A cost, a risk or a "not tested" buried in one is what gets
+approved past and found a day later by someone else. After the description is drafted and
+before the push, read the diff, the commits and what the author said in this session, and
+write GitHub alerts for what the reviewer must weigh:
+
+| Type | Trigger |
+|---|---|
+| `[!CAUTION]` | irreversible or dangerous: a migration that drops or rewrites data, a deleted or skipped test, a change to auth, permissions, secrets or environment |
+| `[!WARNING]` | a cost or a risk the reviewer decides on: CI time added or a job that now runs more often, a behaviour change users will see, a dependency bump, a performance trade-off, a public interface changed |
+| `[!IMPORTANT]` | not done or not proven: anything not run on CI, scope left out on purpose, a follow-up the merge depends on |
+| `[!NOTE]` | context with no risk: new identifiers (`data-testid`, route names, keys), where to start reading |
+
+Rules:
+
+- **At most 4 alerts**, `CAUTION` and `WARNING` first. More candidates than that: the 4 most
+  severe stay alerts, the rest become ordinary bullets in the same section.
+- **One or two sentences each**: the concrete fact first (a number, a file, a duration), then
+  what the reviewer should check or decide with it.
+- **Backed by the diff or by the author.** No alert written to fill the block; with nothing to
+  flag, none is written. A `NOTE` is never invented.
+- **A "not run", "not tested", "did not time it" sentence anywhere in the body also gets an
+  `IMPORTANT`**, even when the template has an AI, Notes or Testing section that already holds
+  it. That section is where it hides.
+- **Placement:** at the top of the template section whose header matches, case-insensitively,
+  `reviewer|review notes|where to look|onde olhar|impacted|areas|attention|risk`; with no
+  such header, the top of the first body section (Description, Summary, Contexto, O que muda);
+  with neither, the top of the first section after the title. Never a new section, never
+  inside `<details>`, in the template's language.
+
+GitHub's syntax, one blank line between alerts:
+
+```markdown
+> [!WARNING]
+> <fact, then what to decide>
+
+> [!IMPORTANT]
+> <what was not run or proven>
+```
+
+Worked example. On a PR that added a CI step re-running every shard's tests with a wrong
+database password, the body said in a bullet "the new step runs the shard's tests a second
+time on every PR, about 1.5 to 6 minutes per shard" and, under "AI Assistance", "Not run on
+GitHub: the new step itself". The reviewer approved; a teammate caught the cost the next day.
+Under "Impacted Areas (Where)" the block writes:
+
+```markdown
+> [!WARNING]
+> Every PR now runs each shard's tests twice: the new step adds about the 1m25s to 5m47s the normal run already takes per shard. Decide whether a stray-read check on every PR is worth that.
+
+> [!IMPORTANT]
+> Not run on GitHub: the new step itself, and `--shard` combined with `--exclude-group`. The first PR after merge is the real test.
+```
+
 ## Step 5: Push and Create PR
 
 ```bash
@@ -334,3 +389,7 @@ upload error, so the user knows to drag them in via the web UI.
 | Embedding screenshots as base64 or committing them to the branch | Upload with `pr/upload-attachment.sh` and link the `user-attachments` URL |
 | Stacking full-size images down the description | One visible before/after row; the rest in collapsed `<details>` with `width` set |
 | Assuming `main`/`master` as base | Detect it (upstream → decoration log → repo default branch) — the branch may target a feature branch |
+| A cost or a "not tested" left as a plain bullet | It is an alert (`WARNING` / `IMPORTANT`) at the top of the section; a bullet is what the reviewer skims past |
+| An alert with no number, file or duration | The concrete fact first, then what the reviewer decides with it |
+| A `NOTE` written so the block is not empty | No alert when there is nothing to flag |
+| A new `## Alerts` section | Inject into the template's own section; never add or remove sections |
