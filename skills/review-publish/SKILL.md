@@ -170,16 +170,18 @@ FFT · x.js:17 — <full comment text, tag prefix dropped>
 
 Because long drafts still overflow the box, also print the same draft as plain text as the last thing in the transcript, right before the `AskUserQuestion` call. The dialog renders below it, so the full draft stays readable above the options.
 
-**The TL;DR comes first.** Right above that plain-text draft, print the report's `## TL;DR` section verbatim (the sentence and its `✗`/`!` lines), under a `TL;DR` line, then a blank line, then the draft:
+**The TL;DR is the last thing before the gate.** After that plain-text draft, a blank line, then a `TL;DR` line and the report's `## TL;DR` section verbatim: the sentence and every `✗`/`!` line, nothing trimmed, nothing cut with `...`. It sits last because the dialog covers the transcript from the bottom: with a long draft the lines nearest the gate are the ones still visible, and the draft is in the previews anyway.
 
 ```
-TL;DR
-Seven tests read the real legacy database by accident; this binds Fakes in them and adds a CI step that runs every shard's suite a second time with a wrong password.
-- ✗ CI cost: every PR runs each shard's tests twice, about 1.5 to 6 minutes more per shard by the author's own numbers (`deploy.yml:97`)
-- ! Not proven: the new step was never run on GitHub (body, AI Assistance)
-
 APPROVE · "Approving, a few notes inline."
-Q · deploy.yml:97 — Nothing asserts the wrong password actually applies ...
+Q · phpunit.xml:31 — Nothing asserts the wrong password actually applies, and `phpunit.xml` pins `LEGACY_DB_PASSWORD` with `force="true"`, so what would turn this step red if that precedence ever changed?
+FFT · LegacyConnectionTest.php:6 — I'd drop this tag, because no test in this file opens a connection.
+
+TL;DR
+Seven tests read the real legacy database by accident; this binds Fakes in them and adds a CI step that runs every shard's suite a second time with a wrong password, so the next stray read fails on the PR.
+- ✗ CI cost: every PR runs each shard's tests twice, about 1.5 to 6 minutes more per shard by the author's own numbers, and nobody has measured it on GitHub (`deploy.yml:97`; body, Impacted Areas)
+- ! Not proven: the new step and `--shard` with `--exclude-group` were never run on GitHub; the first PR after merge is the real test (body, AI Assistance)
+- ! Nothing asserts the wrong password is applied: `phpunit.xml` pins the variable with `force="true"` (`phpunit.xml:31`; raised as a Question)
 ```
 
 It is the executive read the gate exists for: the verdict is chosen with the cost and the unproven claims in view, not from the inline comments alone. The option previews stay as they are (the box cuts at about 5 lines; a TL;DR there would hide the comments). A report saved before the section existed prints `TL;DR: none in this report` in its place.
@@ -246,7 +248,7 @@ voice_skill: <name>
 | Abbreviated `commit_id`, or an inline `line` on a context line | Run the dry run; GitHub 422s the whole review |
 | Ending the turn with a prose question | `AskUserQuestion` is the last call of the turn |
 | Summarizing the draft above the gate ("approve with LGTM, no inline") | The verbatim draft goes in the transcript right above the gate AND, dense, in the options' `preview` |
-| Gate printed without the TL;DR | Print the report's `TL;DR` verbatim first, then the draft; the executive read is the point of the gate |
+| Gate printed without the TL;DR, or trimmed | The draft, then the report's `TL;DR` verbatim as the last lines before the gate; the executive read is the point of the gate |
 | TL;DR pasted into the review body or an inline comment | The lint refuses it (`tldr-leak`); it lives above the gate only |
 | A roomy preview (`BODY:` label, blank lines, SHA) | The box cuts at ~5 lines; the comments are what got hidden |
 | Squeezing 10 comments into one 4-option question | Paginate: 4 per question, 3 comment questions per call, then a new call |

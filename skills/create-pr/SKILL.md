@@ -299,8 +299,10 @@ write GitHub alerts for what the reviewer must weigh:
 
 Rules:
 
-- **At most 4 alerts**, `CAUTION` and `WARNING` first. More candidates than that: the 4 most
-  severe stay alerts, the rest become ordinary bullets in the same section.
+- **At most 4 alerts**, in this order: `CAUTION`, `WARNING`, `IMPORTANT`, `NOTE`. More
+  candidates than that: the "not run / not tested" `IMPORTANT` keeps its slot whatever the
+  count, the most severe of the rest fill the others, and what is left becomes ordinary
+  bullets in the same section. A `NOTE` is the first to go.
 - **One or two sentences each**: the concrete fact first (a number, a file, a duration), then
   what the reviewer should check or decide with it.
 - **Backed by the diff or by the author.** No alert written to fill the block; with nothing to
@@ -308,13 +310,17 @@ Rules:
 - **A "not run", "not tested", "did not time it" sentence anywhere in the body also gets an
   `IMPORTANT`**, even when the template has an AI, Notes or Testing section that already holds
   it. That section is where it hides.
-- **Placement:** at the top of the template section whose header matches, case-insensitively,
-  `reviewer|review notes|where to look|onde olhar|impacted|areas|attention|risk`; with no
-  such header, the top of the first body section (Description, Summary, Contexto, O que muda);
-  with neither, the top of the first section after the title. Never a new section, never
-  inside `<details>`, in the template's language.
+- **Placement:** at the top of the FIRST template section whose header matches, case-
+  insensitively, `reviewer|review notes|where to look|onde olhar|impacted|áreas|areas|attention|atenção|risk|riscos`;
+  with no such header, the top of the first section NAMED like a body section
+  (`description|descrição|summary|resumo|context|contexto|what|o que muda`); with neither,
+  the top of the first section after the title. A template with no headers at all (bold
+  labels only): right after the first label. Never a new section, never inside `<details>`.
+  The prose is in the template's language; the type keyword stays English
+  (`[!WARNING]`, never `[!AVISO]`), GitHub renders no other.
 
-GitHub's syntax, one blank line between alerts:
+GitHub's syntax, one blank line between alerts and one after the last (without it the next
+paragraph is pulled into the alert box):
 
 ```markdown
 > [!WARNING]
@@ -322,6 +328,8 @@ GitHub's syntax, one blank line between alerts:
 
 > [!IMPORTANT]
 > <what was not run or proven>
+
+<the section's own bullets follow>
 ```
 
 Worked example. On a PR that added a CI step re-running every shard's tests with a wrong
@@ -332,7 +340,7 @@ Under "Impacted Areas (Where)" the block writes:
 
 ```markdown
 > [!WARNING]
-> Every PR now runs each shard's tests twice: the new step adds about the 1m25s to 5m47s the normal run already takes per shard. Decide whether a stray-read check on every PR is worth that.
+> Every PR now runs each shard's tests twice: the new step adds about the 1.5 to 6 minutes the normal run already takes per shard, not timed on GitHub. Decide whether a stray-read check on every PR is worth that.
 
 > [!IMPORTANT]
 > Not run on GitHub: the new step itself, and `--shard` combined with `--exclude-group`. The first PR after merge is the real test.

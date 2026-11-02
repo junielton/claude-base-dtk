@@ -55,7 +55,10 @@ Run **Analyze**, applying the **Diff Reading Rules**.
 ### 4b. Collect Critical Facts (for the TL;DR)
 
 A bug becomes a finding. A cost, a risk or a gap is not a bug, so the buckets of step 8 never
-hold it, and it is exactly what a reviewer approves past. Collect these facts now, in order:
+hold it, and it is exactly what a reviewer approves past. Sources 1, 4 and 5 read the PR's
+title and body, which step 3 does not fetch: get them first
+(`gh pr view $ARGUMENTS --json title,body`, or the PR-details call of the GitHub MCP). Then
+collect these facts, in order:
 
 1. **Alerts the author wrote** in the PR body: `> [!CAUTION]`, `> [!WARNING]`,
    `> [!IMPORTANT]` (and a `[!NOTE]` only when it carries a risk). Carry each one over,
@@ -76,7 +79,10 @@ description. A fact with no source is not written. These facts are not findings:
 through the verifier and they never carry a severity. When a fact needs the author's answer
 (an unproven step, a number nobody measured, a claim the diff contradicts), it ALSO becomes a
 `? Question` in step 8, through the verifier like any other, and that is how it reaches
-GitHub.
+GitHub. The Question anchors on the added line the fact is about (the workflow step, the
+migration, the test); a fact with no added line to anchor on stays in the TL;DR only, it is
+never pinned to an unrelated line. When the verifier refutes that Question (the code already
+answers it), the TL;DR line it came from is corrected or dropped, never left standing.
 
 ### 5. Evaluate Existing Comments
 
@@ -161,8 +167,11 @@ Justification with code references...
 ```
 
 **TL;DR rules.** The section is always present, right after the Summary. One sentence on
-what the PR does, then 2 to 5 lines from step 4b, `✗` for a fact the reviewer must accept
-before merging (irreversible, or a cost paid on every run) and `!` for attention. Fact first,
+what the PR does, then 1 to 5 lines from step 4b, `✗` for a fact the reviewer must accept
+before merging (irreversible, or a cost paid on every run) and `!` for attention. Over 5
+candidates: `✗` lines first, then the author's own alerts, then the rest; merge `!` lines
+that share a cause, and drop from the bottom. A `✗` or an author's `CAUTION`/`WARNING` is
+never the one dropped. Fact first,
 concrete (a number, a file, a duration, a quoted sentence), then why it matters, one line each;
 the source in parentheses. With nothing critical, one line: `- Nothing critical: <why, one
 clause>`. The TL;DR is the reviewer's read of the PR and never leaves the report: `/dtk:review-publish`
