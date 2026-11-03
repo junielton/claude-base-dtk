@@ -3,11 +3,11 @@
 # Payload eval for the review-publish skill.
 #
 # Runs the skill body (frontmatter stripped, via `claude -p --append-system-prompt-file`)
-# against 5 fixture reports, stops at the dry run, and grades the publish-N.json the
+# against 6 fixture reports, stops at the dry run, and grades the publish-N.json the
 # skill wrote. Same pattern as agents/evals/dtk-review-verifier/run.sh.
 #
 # Usage:
-#   ./run.sh                      # current skill, 3 runs x 5 cases
+#   ./run.sh                      # current skill, 3 runs x 6 cases
 #   ./run.sh --baseline           # the pre-change snapshot (baseline/SKILL.md + baseline/post-review.sh)
 #   ./run.sh --runs 1 --case a,c  # a quick smoke run
 #   ./run.sh --model sonnet --jobs 5 --keep
@@ -128,7 +128,7 @@ WRAP
     sed "s/\$ARGUMENTS/$pr/g" "$BODY_TPL" > "$body"
 
     prompt="Publish the review for PR #$pr, following the review-publish skill in your system prompt.
-This is a non-interactive run in a sandbox directory (repo acme/shop, which has no git remote here) that holds memories/reviews/PR-$pr/peer-review-1.md and scripts/. Step 0 is already done: SCRIPTS is scripts, so write that literal path in your commands (the sandbox refuses shell variables, command substitution and compound commands, so run one simple command per Bash call: no ;, &&, || or pipes). Do steps 1 to 5 only: build publish-1.json, do the voice pass, and run the dry run until it is clean. Stop there: no confirmation gate, no AskUserQuestion, no steps 6, 7 or 8. Nothing is ever posted. Finish with one line."
+This is a non-interactive run in a sandbox directory (repo acme/shop, which has no git remote here) that holds memories/reviews/PR-$pr/peer-review-1.md and scripts/. Step 0 is already done: SCRIPTS is scripts and PR is $pr, so write those literal values in your commands (the sandbox refuses shell variables, command substitution and compound commands, so run one simple command per Bash call: no ;, &&, || or pipes). Do steps 1 to 5 only: build publish-1.json, do the voice pass, and run the dry run until it is clean. Stop there: no confirmation gate, no AskUserQuestion, no steps 6, 7 or 8. Nothing is ever posted. Finish with one line."
 
     # Guards 2-4: stub gh first on PATH, dead tokens, explicit allowlist, no MCP servers.
     (cd "$dir" && env -u CLAUDECODE -u CLAUDE_CODE_SSE_PORT -u GH_ENTERPRISE_TOKEN \

@@ -157,5 +157,26 @@ if jq -e --arg d "$REPO/memories/reviews/feature/login" '.memory_dir == $d' <<<"
 else report "init leaves a branch name as it is" 0 "output: $out"; fi
 
 echo
+echo "== evals/grade.py flags a TL;DR leak (case f) =="
+# Offline: a hand-written payload per variant, graded on the no-leak check only.
+GRUN="$TMP/grade-f"; mkdir -p "$GRUN/memories/reviews/PR-106"
+grade_f() { # <name> <Q body> <want no-leak pass: true|false>
+  jq -n --arg sha "$(jq -r .head_sha "$EVALS/cases.json")" --arg q "$2" '{
+    pr: 106, repo: "acme/shop", commit_id: $sha, event: "APPROVE", body: "",
+    comments: [
+      {path: "resources/js/cart.js", line: 8, tag: "FFT", body: "FFT: I would clamp the total at 0, a large coupon makes it negative."},
+      {path: "app/Services/InvoiceMailer.php", line: 17, tag: "Q", body: $q}
+    ]}' > "$GRUN/memories/reviews/PR-106/publish-1.json"
+  local out got
+  out="$(python3 -I "$EVALS/grade.py" --cases "$EVALS/cases.json" --case f --run-dir "$GRUN" --lint "$LINT" 2>&1)"
+  got="$(jq -r '.checks["no-leak"].pass' <<<"$out" 2>/dev/null)"
+  if [ "$got" = "$3" ]; then report "$1" 1 ""; else report "$1" 0 "no-leak.pass=$got, wanted $3: $out"; fi
+}
+grade_f "grade.py passes a payload with no TL;DR content" \
+  'Q: Is sent_at meant to mean handed to the mailer or delivered?' true
+grade_f "grade.py fails a payload that carries a TL;DR line" \
+  'Q: Is sent_at meant to mean delivered? Today the finance export counts undelivered mail.' false
+
+echo
 echo "passed $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]
