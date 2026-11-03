@@ -55,9 +55,12 @@ stopped at step 4 could not tell the two variants apart. The verifier itself is 
 reviewer's *labeling*, which is what the hint influences, not the verifier's verdicts (that is
 `agents/evals/dtk-review-verifier`).
 
-**What this does not cover:** the rubric, not the wiring. The `## TL;DR` section (step 4b, added 2026-11-02) is printed per run as `tldr: N lines` and not graded: the fixture has no PR body, so there is nothing for an alert or a claim check to read. It does not collect a PR through the
-GitHub MCP, run `review-publish`, load memory or lessons, or dispatch the verifier. Runs are
-small samples from a nondeterministic model: a 5/5 or 0/5 is a signal, a 3/5 is noise.
+**What this does not cover:** the rubric, not the wiring. The `## TL;DR` section (step 4b,
+added 2026-11-02) is printed per run as `tldr: N lines` and not graded: the fixture has no PR
+body, so there is nothing for an alert or a claim check to read. It does not collect a PR
+through the GitHub MCP, run `review-publish`, load memory or lessons, or dispatch the
+verifier. Runs are small samples from a nondeterministic model: a 5/5 or 0/5 is a signal, a
+3/5 is noise.
 
 ### Harness notes
 
