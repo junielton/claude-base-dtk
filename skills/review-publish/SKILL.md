@@ -3,7 +3,7 @@ name: review-publish
 description: "Use after /dtk:review-peer (or with any saved review report) to turn the report into the GitHub review: the verdict, a one-line body, one inline comment per verified finding, written through the user's own voice skill when one exists, validated against the PR diff, and posted only after an explicit confirmation. Also use when asked to post, publish or send a drafted review."
 ---
 
-# Review Publish: PR #$ARGUMENTS
+# Review Publish: PR $ARGUMENTS
 
 ## Overview
 
@@ -32,13 +32,23 @@ The one rule everything below enforces: **the GitHub text contains the verdict a
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 
+Use the output path as `$SCRIPTS` for all script commands below.
+
+Then resolve the PR number. The argument may be `184`, `#184` or a pull URL; the number is what every path, memory key, `gh` call and header below uses:
+
+```bash
+PR=$(bash $SCRIPTS/review/memory-manager.sh pr-number "$ARGUMENTS") || echo "dtk: no PR number in the argument" >&2; echo "$PR"
+```
+
+Use the output as `$PR`. Never put the raw argument in a path or a `gh` call: `#184` would save under `memories/reviews/PR-#184/`.
+
 ## Workflow
 
 ### 1. Load the report
 
 ```bash
 bash $SCRIPTS/review/project-context.sh
-ls -t memories/reviews/PR-$ARGUMENTS/peer-review-*.md | head -1
+ls -t memories/reviews/PR-$PR/peer-review-*.md | head -1
 ```
 
 Read the latest `peer-review-N.md` (or the path the user gave). Keep the `## TL;DR` section aside, verbatim: it is printed in step 6 and never enters the payload (not the body, not a comment; `tone-lint.sh` refuses it as `tldr-leak`). Take ONLY these sections into the payload:
@@ -66,7 +76,7 @@ A red CI, a pending rebase, or an open old thread never changes this. CI is the 
 
 ### 3. Build the payload
 
-Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
+Write `memories/reviews/PR-$PR/publish-N.json` (same `N` as the report):
 
 ```json
 {
@@ -80,6 +90,8 @@ Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
   ]
 }
 ```
+
+`pr` is `$PR` as a JSON number (`184`), never the raw argument (`"#184"` or a URL).
 
 **Inline comments.** One per finding that the verifier kept. Tag from the bucket: Blocking → `CR`, Non-blocking → `FFT`, Questions → `Q`. Each body:
 
@@ -138,7 +150,7 @@ The resolver returns the user's writing-voice skill, if they have one (see [Voic
 ### 5. Validate anchors
 
 ```bash
-bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json --dry-run
+bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$PR/publish-N.json --dry-run
 ```
 
 The dry run runs `tone-lint.sh` first, on the payload as it stands after the voice pass. It fails, and names the rule and the comment, on a banned hedge, a body without a `Q: `/`CR: `/`FFT: ` prefix, an inline over two sentences, a CR under any event but `REQUEST_CHANGES`, or `TL;DR` anywhere in the body or a comment (`tldr-leak`). Fix the wording (or the event) and run again; never edit the lint or the list to make a payload pass.
@@ -150,7 +162,7 @@ It also fails, and names the offender, when: `commit_id` is not the current head
 The draft lives INSIDE the gate, in each option's `preview`. The question dialog covers the transcript, so a draft printed above it (or worse, a one-line summary of it) is never what the user reads before choosing. End the turn with `AskUserQuestion`, never with a plain-text question:
 
 ```
-header:   "PR #$ARGUMENTS"
+header:   "PR #$PR"
 question: "Review ready: <APPROVE|REQUEST_CHANGES>. Post it?"
 options (single-select, every option carries a preview):
   - "Post <approve|request changes>"   preview: the full draft (below)  → step 7
@@ -201,14 +213,14 @@ Rewrite `publish-N.json` with the chosen verdict and only the checked comments. 
 ### 7. Post
 
 ```bash
-bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json
+bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$PR/publish-N.json
 ```
 
 The script re-runs the dry-run checks, then submits one review via `gh api`. On a 422 it prints GitHub's message and leaves the payload untouched; fix the anchor and run again.
 
 ### 8. Record
 
-Append to `memories/reviews/PR-$ARGUMENTS/review-state.md` under `## Notes`:
+Append to `memories/reviews/PR-$PR/review-state.md` under `## Notes`:
 
 ```
 - Posted peer-review-N as <event> at <commit_id short>, <count> inline (YYYY-MM-DD)

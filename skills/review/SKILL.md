@@ -3,7 +3,7 @@ name: review
 description: "Use when reviewing your own pull request, processing PR review comments, or triaging feedback on a PR you authored."
 ---
 
-# PR Review: #$ARGUMENTS
+# PR Review: $ARGUMENTS
 
 ## Overview
 
@@ -30,9 +30,17 @@ SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts
 
 Use the output path as `$SCRIPTS` for all script commands below.
 
+Then resolve the PR number. The argument may be `184`, `#184` or a pull URL; the number is what every path, memory key, `gh` call and header below uses:
+
+```bash
+PR=$(bash $SCRIPTS/review/memory-manager.sh pr-number "$ARGUMENTS") || echo "dtk: no PR number in the argument" >&2; echo "$PR"
+```
+
+Use the output as `$PR`. Never put the raw argument in a path or a `gh` call: `#184` would save under `memories/reviews/PR-#184/`.
+
 ## Workflow
 
-Read `${CLAUDE_SKILL_DIR}/references/workflow.md` now, before step 1. Steps 1–8 and 10 run its sections by name (bold), with: `<memory-key>` = `PR-$ARGUMENTS`, `<memory-type>` = `review`, `<report-prefix>` = `review`, `<scope>` = `PR #$ARGUMENTS`.
+Read `${CLAUDE_SKILL_DIR}/references/workflow.md` now, before step 1. Steps 1–8 and 10 run its sections by name (bold), with: `<memory-key>` = `PR-$PR`, `<memory-type>` = `review`, `<report-prefix>` = `review`, `<scope>` = `PR #$PR`.
 
 ### 1–7. Shared steps
 
@@ -40,7 +48,7 @@ Run these sections of the workflow reference, in this order:
 
 1. **Gather Project Context**
 2. **Load Mandatory References** — from the lessons, identify which are relevant to the PR's changed files (by category) and use them as mandatory checkpoints
-3. **Collect PR Data** for PR #$ARGUMENTS
+3. **Collect PR Data** for PR #$PR
 4. **Analyze** (execute BEFORE generating any output), applying the **Diff Reading Rules**
 5. **Evaluate Existing Comments**
 6. **Memory — Load** (execute AFTER analysis, BEFORE generating output)
@@ -53,15 +61,15 @@ Run **Verify Findings**. It applies to findings from **your own analysis** (step
 ### 9. Generate Output
 
 ```bash
-N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "review")
+N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$PR" "review")
 ```
 
-Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}.md`
+Save to: `{project_root}/memories/reviews/PR-$PR/review-{N}.md`
 
 **Valid comments → Tasks** (markers: `${CLAUDE_SKILL_DIR}/references/output-vocabulary.md`):
 
 ```
-## Tasks — PR #$ARGUMENTS
+## Tasks — PR #$PR
 
 ### ✗ Critical
 - [ ] `file:line` — Description (by @author) — violates `docs/lessons/.../NNN-slug.md`
@@ -75,7 +83,7 @@ Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}.md`
 
 **Non-applicable comments → responses:**
 
-Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/review-{N}-responses.md`
+Save to: `{project_root}/memories/reviews/PR-$PR/review-{N}-responses.md`
 - **For humans**: friendly, modest, justified with code references
 - **For AIs**: direct, no fluff
 

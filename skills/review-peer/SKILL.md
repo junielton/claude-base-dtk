@@ -3,7 +3,7 @@ name: review-peer
 description: "Use when reviewing a teammate's pull request, providing peer feedback on someone else's PR, or when asked to review a PR you didn't author."
 ---
 
-# Peer Review: PR #$ARGUMENTS
+# Peer Review: PR $ARGUMENTS
 
 ## Overview
 
@@ -32,9 +32,17 @@ SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts
 
 Use the output path as `$SCRIPTS` for all script commands below.
 
+Then resolve the PR number. The argument may be `184`, `#184` or a pull URL; the number is what every path, memory key, `gh` call and header below uses:
+
+```bash
+PR=$(bash $SCRIPTS/review/memory-manager.sh pr-number "$ARGUMENTS") || echo "dtk: no PR number in the argument" >&2; echo "$PR"
+```
+
+Use the output as `$PR`. Never put the raw argument in a path or a `gh` call: `#184` would save under `memories/reviews/PR-#184/`.
+
 ## Workflow
 
-Read `${CLAUDE_SKILL_DIR}/../review/references/workflow.md` now, before step 1. Steps 1–8 and 10 run its sections by name, with: `<memory-key>` = `PR-$ARGUMENTS`, `<memory-type>` = `peer-review`, `<report-prefix>` = `peer-review`, `<scope>` = `PR #$ARGUMENTS`.
+Read `${CLAUDE_SKILL_DIR}/../review/references/workflow.md` now, before step 1. Steps 1–8 and 10 run its sections by name, with: `<memory-key>` = `PR-$PR`, `<memory-type>` = `peer-review`, `<report-prefix>` = `peer-review`, `<scope>` = `PR #$PR`.
 
 ### 1. Gather Project Context
 
@@ -46,7 +54,7 @@ Run **Load Mandatory References**.
 
 ### 3. Collect Data (GitHub MCP)
 
-Run **Collect PR Data** for PR #$ARGUMENTS.
+Run **Collect PR Data** for PR #$PR.
 
 ### 4. Analyze (execute BEFORE generating any output)
 
@@ -57,7 +65,7 @@ Run **Analyze**, applying the **Diff Reading Rules**.
 A bug becomes a finding. A cost, a risk or a gap is not a bug, so the buckets of step 8 never
 hold it, and it is exactly what a reviewer approves past. Sources 1, 4 and 5 read the PR's
 title and body, which step 3 does not fetch: get them first
-(`gh pr view $ARGUMENTS --json title,body`, or the PR-details call of the GitHub MCP). Then
+(`gh pr view $PR --json title,body`, or the PR-details call of the GitHub MCP). Then
 collect these facts, in order:
 
 1. **Alerts the author wrote** in the PR body: `> [!CAUTION]`, `> [!WARNING]`,
@@ -106,13 +114,13 @@ Run **Verify Findings**. The Blocking / Non-blocking / Questions buckets map one
 ### 9. Generate Output
 
 ```bash
-N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$ARGUMENTS" "peer-review")
+N=$(bash $SCRIPTS/review/memory-manager.sh next-number "PR-$PR" "peer-review")
 ```
 
-Save to: `{project_root}/memories/reviews/PR-{$ARGUMENTS}/peer-review-{N}.md` (markers: `${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`)
+Save to: `{project_root}/memories/reviews/PR-$PR/peer-review-{N}.md` (markers: `${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`)
 
 ```
-# Peer Review — PR #$ARGUMENTS
+# Peer Review — PR #$PR
 
 ## Recommendation: ✓ Approve | ! Approve with Comments | ✗ Request Changes
 
@@ -209,7 +217,7 @@ Run **Memory — Save**. The state is shared with `/review` and `/review-local`:
 
 ### 11. Hand off
 
-The review is done when the report and the state are saved. To put it on GitHub, invoke `/dtk:review-publish $ARGUMENTS`. Do not draft the comment here: the report's `TL;DR`, `Reconciliation`, `Existing Review Comments` and `Final Summary` are reviewer memory and must not leak into what the author reads.
+The review is done when the report and the state are saved. To put it on GitHub, invoke `/dtk:review-publish $PR`. Do not draft the comment here: the report's `TL;DR`, `Reconciliation`, `Existing Review Comments` and `Final Summary` are reviewer memory and must not leak into what the author reads.
 
 ## Tone & Perspective
 
