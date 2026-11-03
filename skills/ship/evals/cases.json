@@ -1,0 +1,211 @@
+{
+  "stubbed_skills": [
+    "review-local",
+    "smart-commit",
+    "create-pr",
+    "review",
+    "debug-gh-action",
+    "learn-from-review",
+    "report-back",
+    "git-rebase-onto",
+    "dsqa"
+  ],
+  "fixture": {
+    "base_branch": "main",
+    "head_branch": "card/T1-demo-change"
+  },
+  "cases": [
+    {
+      "name": "dispatched-pr-only",
+      "why": "The T580 shape: a dispatcher override list that sounds like it replaces review and PR conventions.",
+      "state": "committed",
+      "ci": "green",
+      "prompt": "You are the SHIPPER for card T1 (mission m-1, step stp-1). The implementation is already committed and pushed on this branch by another session; you did not write it. Your job: review the diff cold, then open the PR.\n\nBranch: card/T1-demo-change (1 commit ahead of origin/main). Base: main.\n\nRun the ship skill with these overrides:\n- Base branch: main.\n- Open the PR only. NEVER merge, never close anything.\n- Skip the final notify/speak step. The orchestrator reports centrally.\n- PR title/description per CONTRIBUTING.md. In the description, note that the CI production build and e2e were not run locally.\n- If review-local finds something, fix it in a new commit inside the 2 files already touched (src/greet.js, CHANGELOG.md), nothing else.\n- Monitor CI and Copilot review once; address valid comments; stop after CI has reported.\n\nDo not touch this worktree after you report.\n\nReport: write REPORT-SHIP.md in this worktree FIRST. Content: PR URL, PR number, final head sha, CI status per check, review findings (found / fixed / left).",
+      "expect": [
+        {
+          "id": "ship-loaded",
+          "kind": "skill",
+          "name": "ship",
+          "min": 1
+        },
+        {
+          "id": "review-local-called",
+          "kind": "skill",
+          "name": "review-local",
+          "min": 1
+        },
+        {
+          "id": "create-pr-called",
+          "kind": "skill",
+          "name": "create-pr",
+          "min": 1
+        },
+        {
+          "id": "review-local-before-create-pr",
+          "kind": "order",
+          "before": {
+            "skill": "review-local"
+          },
+          "after": {
+            "skill": "create-pr"
+          }
+        },
+        {
+          "id": "no-raw-pr-create-before-skill",
+          "kind": "order",
+          "before": {
+            "skill": "create-pr"
+          },
+          "after": {
+            "bash": "\\bgh\\s+pr\\s+create\\b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "dispatched-ci-red",
+      "why": "Same dispatch, one CI shard red on a timeout. The verdict 'flaky' belongs to debug-gh-action.",
+      "state": "committed",
+      "ci": "red",
+      "prompt": "You are the SHIPPER for card T1 (mission m-1, step stp-1). The implementation is already committed and pushed on this branch by another session; you did not write it. Your job: review the diff cold, then open the PR.\n\nBranch: card/T1-demo-change (1 commit ahead of origin/main). Base: main.\n\nRun the ship skill with these overrides:\n- Base branch: main.\n- Open the PR only. NEVER merge, never close anything.\n- Skip the final notify/speak step. The orchestrator reports centrally.\n- PR title/description per CONTRIBUTING.md. In the description, note that the CI production build and e2e were not run locally.\n- If review-local finds something, fix it in a new commit inside the 2 files already touched (src/greet.js, CHANGELOG.md), nothing else.\n- Monitor CI and Copilot review once; address valid comments; stop after CI has reported.\n\nDo not touch this worktree after you report.\n\nReport: write REPORT-SHIP.md in this worktree FIRST. Content: PR URL, PR number, final head sha, CI status per check, review findings (found / fixed / left).",
+      "expect": [
+        {
+          "id": "ship-loaded",
+          "kind": "skill",
+          "name": "ship",
+          "min": 1
+        },
+        {
+          "id": "review-local-called",
+          "kind": "skill",
+          "name": "review-local",
+          "min": 1
+        },
+        {
+          "id": "create-pr-called",
+          "kind": "skill",
+          "name": "create-pr",
+          "min": 1
+        },
+        {
+          "id": "debug-gh-action-called",
+          "kind": "skill",
+          "name": "debug-gh-action",
+          "min": 1
+        },
+        {
+          "id": "no-raw-pr-create-before-skill",
+          "kind": "order",
+          "before": {
+            "skill": "create-pr"
+          },
+          "after": {
+            "bash": "\\bgh\\s+pr\\s+create\\b"
+          }
+        }
+      ]
+    },
+    {
+      "name": "plain-ship-uncommitted",
+      "why": "No overrides, uncommitted work: the whole chain, in order, then a report-back.",
+      "state": "uncommitted",
+      "ci": "green",
+      "prompt": "ship isso",
+      "expect": [
+        {
+          "id": "ship-loaded",
+          "kind": "skill",
+          "name": "ship",
+          "min": 1
+        },
+        {
+          "id": "review-local-called",
+          "kind": "skill",
+          "name": "review-local",
+          "min": 1
+        },
+        {
+          "id": "smart-commit-called",
+          "kind": "skill",
+          "name": "smart-commit",
+          "min": 1
+        },
+        {
+          "id": "create-pr-called",
+          "kind": "skill",
+          "name": "create-pr",
+          "min": 1
+        },
+        {
+          "id": "review-local-before-smart-commit",
+          "kind": "order",
+          "before": {
+            "skill": "review-local"
+          },
+          "after": {
+            "skill": "smart-commit"
+          }
+        },
+        {
+          "id": "smart-commit-before-create-pr",
+          "kind": "order",
+          "before": {
+            "skill": "smart-commit"
+          },
+          "after": {
+            "skill": "create-pr"
+          }
+        },
+        {
+          "id": "no-raw-pr-create-before-skill",
+          "kind": "order",
+          "before": {
+            "skill": "create-pr"
+          },
+          "after": {
+            "bash": "\\bgh\\s+pr\\s+create\\b"
+          }
+        },
+        {
+          "id": "report-back-called",
+          "kind": "skill",
+          "name": "report-back",
+          "min": 1
+        }
+      ]
+    },
+    {
+      "name": "explicit-skip-respected",
+      "why": "Guard against over-hardening: when the user NAMES the steps to skip, ship must obey.",
+      "state": "committed",
+      "ci": "green",
+      "prompt": "Run the ship skill on this branch (committed and pushed, base main) with these overrides: skip the local review, I already ran it; open the PR with a plain `gh pr create` directly, I do not want the create-pr skill.",
+      "expect": [
+        {
+          "id": "ship-loaded",
+          "kind": "skill",
+          "name": "ship",
+          "min": 1
+        },
+        {
+          "id": "review-local-skipped",
+          "kind": "skill",
+          "name": "review-local",
+          "max": 0
+        },
+        {
+          "id": "create-pr-skill-skipped",
+          "kind": "skill",
+          "name": "create-pr",
+          "max": 0
+        },
+        {
+          "id": "raw-pr-create-used",
+          "kind": "bash",
+          "pattern": "\\bgh\\s+pr\\s+create\\b",
+          "min": 1
+        }
+      ]
+    }
+  ]
+}

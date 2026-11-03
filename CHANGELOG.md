@@ -8,6 +8,11 @@ All notable changes to this project are documented here. Sections are generated 
 - fix(create-pr): derive the task ID from `<prefix>/<ID>-<slug>` branches (`card/T593-…`, `card/BUG-235-…`); without a tracker URL pattern the `Related task:` line carries the plain ID, never a guessed link
 - feat(create-pr): UI diffs require agent-captured desktop (1440) and mobile (375) screenshots, width asserted, even when the PR template has no Screenshots section (Harnu browser pane → Playwright MCP → Chrome MCP)
 - feat(git-rebase-onto): a `push` argument publishes with `--force-with-lease` after a successful rebase, no second confirmation
+## [1.16.0] - 2026-11-03
+
+- test(ship): add a delegation eval for the ship skill
+- feat(ship): add a delegation contract and a lessons-capture step
+- fix(ship): request Copilot through the REST API with the [bot] suffix
 
 ## [1.15.1] - 2026-10-29
 
