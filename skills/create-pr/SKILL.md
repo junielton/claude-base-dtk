@@ -64,9 +64,22 @@ git diff ${BASE}..HEAD --stat
 
 ### Task ID
 
-Parse the task ID from the branch name with the generic pattern
-`^([A-Za-z]+-[0-9]+)` — e.g. `ABC-1234-fix-avatar-cache` → `ABC-1234`. If the
-branch doesn't match, there is no task ID (that's fine — see the title fallback).
+Parse the task ID from the branch name with the pattern
+`^(?:[A-Za-z0-9_.-]+/)?([A-Za-z]+-[0-9]+|[A-Z][0-9]+)(?:-|$)` — an optional
+`<prefix>/` (`card/`, `feat/`, `fix/`, a username …), then the ID (`PROJ-123`
+style, or one capital letter plus digits like `T593`), then `-<slug>`:
+
+| Branch | Task ID |
+|---|---|
+| `ABC-1234-fix-avatar-cache` | `ABC-1234` |
+| `card/T593-fix-avatar-cache` | `T593` |
+| `card/BUG-235-fix-avatar-cache` | `BUG-235` |
+| `feat/fix-avatar-cache` | none (`feat` is a prefix, not an ID) |
+
+The ID must be followed by `-` or end the name, and the one-letter form must be
+uppercase, so `feat/v2-redesign` yields no ID. Take the first match only, and strip the `<prefix>/` before using the rest as
+the title slug (Step 3). If the branch doesn't match, there is no task ID (that's
+fine — see the title fallback).
 
 ### Task link (for the `Related task:` line)
 
@@ -83,9 +96,13 @@ Resolve in this order:
 
 2. **Context** — if the user (or the task notes in the current workspace, e.g. a
    `task.md` for this branch) already provided the full task URL, use it directly.
-3. **Ask** — otherwise ask the user with `AskUserQuestion`, offering a
-   "No task / skip" option. Never build a tracker URL from the ID alone without a
-   configured pattern — the ID isn't a full URL.
+3. **Plain mention** — if there is no `taskUrlPattern` and no URL in context,
+   write the bare ID on the `Related task:` line (`Related task: T593`), with no
+   link markup. If the user is available, you may first offer one
+   `AskUserQuestion` ("paste the task URL / use the plain ID"); an unanswered or
+   skipped question falls back to the plain ID. Never build a tracker URL from
+   the ID alone without a configured pattern — the ID isn't a full URL, and a
+   guessed link is a broken link.
 
 ## Step 3: Generate PR Title
 
@@ -94,8 +111,9 @@ parentheses, never at the beginning.**
 
 ### From the Branch Name (default)
 
-1. Strip the leading `<ID>-` from the branch name; the remaining slug is the title
-   source (e.g. `ABC-1234-fix-avatar-cache` → `fix-avatar-cache`).
+1. Strip the leading `<prefix>/` (if any) and the `<ID>-` from the branch name;
+   the remaining slug is the title source (e.g. `ABC-1234-fix-avatar-cache` and
+   `card/ABC-1234-fix-avatar-cache` → `fix-avatar-cache`).
 2. Replace hyphens with spaces, capitalize the first letter, and fix casing on
    well-known acronyms (API, URL, CMS, PR, CI, ID, ...).
 3. Enhance with detail from the actual diff when the slug alone is too vague —
@@ -146,14 +164,41 @@ Fill every section; write "N/A" or "None" for the ones that don't apply.
 - Summarize at the feature/module level — don't list every changed file.
 - Bullet points should help the reviewer understand scope and key decisions.
 
-### Screenshots and previews (when the template asks for them)
+### Screenshots and previews
 
-**Trigger:** the resolved template has a section header (`#`–`####`) matching,
+**Trigger A — the diff changes rendered UI** (components, templates/views,
+styles, layouts, assets that show on a page — judge from `git diff ${BASE}..HEAD --stat`
+and the content, not the file extension alone). The PR **must** carry a desktop
+(1440 px) and a mobile (375 px) screenshot of each changed screen or state, **even
+when the repo's PR template has no Screenshots section** — in that case add a
+`## Screenshots` section at the end of the body. The agent captures them; do not
+ask the user to take them:
+
+1. Start (or reuse) the app's dev server on the changed route(s).
+2. Capture with the first tool available, in this order: **Harnu browser pane**
+   (`mcp__harnu__browser_open` → `browser_emulate` with `width`/`height` →
+   `browser_screenshot` with `save: true`) → **Playwright MCP**
+   (`browser_resize` → `browser_take_screenshot`) → **Chrome MCP**
+   (`resize_window` → screenshot). Run headless / in the background; never take
+   over the user's own window.
+3. **Assert the width** before each shot — read `window.innerWidth` (via the
+   tool's eval/evaluate) and require 1440 or 375. A shot taken at the wrong width
+   is discarded and retaken, not captioned around.
+4. Upload and lay them out as described below (visible row = desktop, mobile in a
+   collapsed `<details>`).
+5. If no capture tool works or the app can't be served, don't block the PR: write
+   `_Pending — screenshots not captured: <reason>._` in the section and flag it in
+   the Step 6 output.
+
+**Trigger B — the resolved template has** a section header (`#`–`####`) matching,
 case-insensitively, `screenshot|screen shot|preview|image|visual|demo|before.*after|recording|video|gif|captura|tela|print`.
-No such section → skip this block entirely; never add a screenshots section the
-template doesn't have.
+For a UI diff, Trigger A already produced the images: put them in that section.
+For a non-UI diff, **ask in the session** (below).
 
-**Ask in the session — every time, even when the diff looks non-visual.** Stop
+Neither trigger (no UI change, no such template section) → skip this block
+entirely.
+
+**Ask in the session (Trigger B, non-UI diff) — every time.** Stop
 before pushing and ask one plain question (not `AskUserQuestion` — the user
 answers by pasting images, which that tool can't take):
 
@@ -223,7 +268,8 @@ URL_VIDEO
 ```
 
 This goes **inside** the template's own screenshots section — keep its header
-exactly as written. "none" → write `N/A` there.
+exactly as written — or, when the template has none (Trigger A), in the
+`## Screenshots` section you added. "none" → write `N/A` there.
 
 ### ADR links (when applicable)
 
@@ -267,8 +313,8 @@ EOF
 
 ## Step 6: Output
 
-Return the PR URL to the user. If the template had a screenshots section, also
-say how many previews were uploaded — and name any left `_Pending_` with the
+Return the PR URL to the user. If the PR has a screenshots section (from the
+template or added for a UI diff), also say how many previews were uploaded — and name any left `_Pending_` with the
 upload error, so the user knows to drag them in via the web UI.
 
 ## Common Mistakes
@@ -281,7 +327,10 @@ upload error, so the user knows to drag them in via the web UI.
 | Omitting template sections that "don't apply" | Write "N/A" or "None" — never remove sections |
 | Listing every file in the description | Summarize at the feature/module level |
 | Using `git push` without `-u` | Always `git push -u origin <branch>` |
-| Creating the PR without asking for previews when the template has a screenshots section | Ask in the session first, every time — "none" is a valid answer |
+| Opening a PR for a UI change without desktop (1440) and mobile (375) screenshots | The agent captures them (Harnu pane → Playwright → Chrome), asserts the width, and adds a Screenshots section even if the template has none |
+| Creating the PR without asking for previews when the template has a screenshots section and the diff is not UI | Ask in the session first, every time — "none" is a valid answer |
+| Reading `card/T593-fix-x` as having no task ID | Strip the optional `<prefix>/` first: the ID is `T593` |
+| Linking a tracker URL guessed from the ID | No pattern and no URL → plain `Related task: T593` |
 | Embedding screenshots as base64 or committing them to the branch | Upload with `pr/upload-attachment.sh` and link the `user-attachments` URL |
 | Stacking full-size images down the description | One visible before/after row; the rest in collapsed `<details>` with `width` set |
 | Assuming `main`/`master` as base | Detect it (upstream → decoration log → repo default branch) — the branch may target a feature branch |

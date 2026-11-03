@@ -15,7 +15,7 @@ description: >-
   another branch with fewer conflicts") without naming the command. Do NOT use it
   for a plain `git rebase main` refresh of an up-to-date fork, interactive
   history cleanup unrelated to reparenting, or merge-based workflows.
-argument-hint: "[target branch to land on, e.g. origin/main] [optional: topic branch, defaults to the current one]"
+argument-hint: "[target branch to land on, e.g. origin/main] [optional: topic branch, defaults to the current one] [optional: push]"
 ---
 
 # git rebase --onto, scripted and safe
@@ -150,7 +150,15 @@ can follow along.
      success output repeats the list. Note `git branch --contains <backup>`
      is NOT enough: it misses children forked mid-range.
    - If the branch has an upstream/PR, publish with
-     `git push --force-with-lease` — never plain `--force`. The lease is NOT a
+     `git push --force-with-lease` — never plain `--force`. **The `push`
+     argument:** if `$ARGUMENTS` contains the word `push` (a bare `push`
+     argument, or "push" anywhere in the invocation, e.g. `/dtk:git-rebase-onto
+     origin/main push`), the user has already authorized this publish — run
+     `git push --force-with-lease` right after the verification checks pass, with
+     **no second confirmation**. Without it, do not push; end with the
+     "NOT pushed" line below. `push` only pre-authorizes the publish: every earlier
+     gate (cut-point confirmation, conflict decisions) still applies, and a
+     failed verification or an unresolved conflict means no push. The lease is NOT a
      safety net for a stale topic: it only proves the remote has not moved since
      your last fetch, so a branch that was behind `origin/<topic>` when you
      rebased it force-pushes over those commits without complaint. That is why
@@ -163,8 +171,9 @@ can follow along.
    never have to ask "did you push?" or "explain again, simply, what is going
    on?". Line 1: what moved, in words — "your N commits moved from X and now sit
    on top of Y; nothing was lost". Line 2: the push state, stated even when you
-   did nothing — **"pushed with --force-with-lease"** or **"NOT pushed — this is
-   the irreversible step, confirm?"**. Write both lines in the user's language.
+   did nothing — **"pushed with --force-with-lease"** (when the `push` argument
+   was given and the push succeeded) or **"NOT pushed — this is the irreversible
+   step, confirm?"** (no `push` argument). Write both lines in the user's language.
    Never end a successful rebase silently sitting on
    an unpushed branch.
 

@@ -38,9 +38,27 @@ If no file is provided, ask the user to describe the feature.
 
 ## Output
 
-Save to `docs/prds/PRD-{short-kebab-title}.md`
+### Step 4: Detect the repo's PRD convention
 
-### Template
+Before choosing a path, check whether the repo already has one:
+
+1. Glob `docs/prds/`, `docs/prd/` and `docs/PRDs/` for `*.md` (ignore `README.md`
+   and `index.md`).
+2. If any PRD exists, take the most recent one (`git log -1 --format=%H -- <file>`)
+   and read its first ~15 lines. Copy from it: the **file-name shape** (e.g.
+   `<CARD-ID>-<slug>.md`, `<NNNN>-<slug>.md`, `PRD-<slug>.md`), the **title/header
+   shape** (heading text, status line, metadata block) and the **section
+   order**. Use the template below only for sections the repo's PRDs don't have.
+3. Where the convention embeds an id (a card or task id such as `PROJ-123`),
+   take it from `$ARGUMENTS`, the branch name or the card; if none is known, ask once.
+4. **Only when no convention exists** (no PRD directory, or it is empty), use the
+   dtk default: `docs/prds/PRD-{short-kebab-title}.md`.
+
+State which rule applied in one line ("Following the repo's
+`docs/prds/<CARD-ID>-<slug>.md` layout" or "No PRD convention found — using the
+dtk default").
+
+### Template (dtk default shape)
 
 ```markdown
 # PRD: {Feature Title}
@@ -145,4 +163,5 @@ Save to `docs/prds/PRD-{short-kebab-title}.md`
 - Acceptance criteria must be **testable**
 - Tailor to project's stack (check CLAUDE.md)
 - Omit empty sections for simple features
-- PRDs live in `docs/prds/` — version-controlled, permanent
+- PRDs live where the repo already keeps them (default `docs/prds/`) — version-controlled, permanent
+- The repo's existing layout beats the dtk default; never create a second PRD directory next to an existing one
