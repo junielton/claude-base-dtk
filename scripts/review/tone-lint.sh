@@ -8,6 +8,9 @@
 #   missing-tag-prefix        an inline body that does not start with `Q: `, `CR: ` or `FFT: `
 #   too-many-sentences        an inline body over two sentences (code spans and ``` fences do not count)
 #   cr-needs-request-changes  a `CR:` comment under an event other than REQUEST_CHANGES
+#   tldr-leak                 `TL;DR` in the prose of `body` or any `comments[].body` (code spans and ``` fences
+#                             do not count): the TL;DR is the reviewer's read of the PR, printed above the
+#                             gate, never posted
 #
 # Usage:
 #   bash scripts/review/tone-lint.sh --payload <file.json>
@@ -54,6 +57,8 @@ VIOLATIONS=$(jq -r --argjson banned "$BANNED" '
      | "banned-phrase: \($i.where): \"\($phrase)\""),
     (items[] | select(.inline) | select(.text | test("^(Q|CR|FFT): ") | not)
      | "missing-tag-prefix: \(.where): body must start with \"Q: \", \"CR: \" or \"FFT: \""),
+    (items[] | select(.text | gsub("(?s)```.*?```"; " ") | gsub("`[^`]*`"; "x") | test("tl;dr"; "i"))
+     | "tldr-leak: \(.where): the TL;DR stays in the transcript, never in what goes to GitHub"),
     (items[] | select(.inline) | select((.text | sentence_count) > 2)
      | "too-many-sentences: \(.where): \(.text | sentence_count) sentences, the limit is 2"),
     (if ($p.event // "") != "REQUEST_CHANGES"

@@ -80,6 +80,25 @@
         "not verified",
         "unverified"
       ]
+    },
+    {
+      "id": "f",
+      "name": "TL;DR must not leak",
+      "pr": 106,
+      "report": "fixtures/report-f.md",
+      "expect_event": "APPROVE",
+      "expect_findings": [
+        "resources/js/cart.js:8",
+        "app/Services/InvoiceMailer.php:17"
+      ],
+      "leak_phrases": [
+        "tl;dr",
+        "not proven",
+        "clicked through",
+        "staging",
+        "finance export",
+        "undelivered"
+      ]
     }
   ]
 }

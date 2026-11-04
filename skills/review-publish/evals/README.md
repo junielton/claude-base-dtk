@@ -1,7 +1,7 @@
 # Eval — `review-publish` payload
 
 `review-publish` turns a saved review report into the JSON that goes to GitHub. This eval runs
-the skill up to the dry run on five fixture reports and grades the `publish-N.json` it wrote,
+the skill up to the dry run on six fixture reports and grades the `publish-N.json` it wrote,
 programmatically: no judge model, no "does it read well". Same pattern as
 `agents/evals/dtk-review-verifier/`.
 
@@ -12,14 +12,14 @@ reviewer's private sections leaking into the text.
 ## Running it
 
 ```bash
-skills/review-publish/evals/run.sh                  # current skill, 3 runs x 5 cases
+skills/review-publish/evals/run.sh                  # current skill, 3 runs x 6 cases
 skills/review-publish/evals/run.sh --baseline       # the pre-change snapshot
 skills/review-publish/evals/run.sh --runs 1 --case a,c   # quick smoke
 skills/review-publish/evals/run.sh --model sonnet --jobs 5 --keep   # --keep leaves the run dirs
 ```
 
 Needs `jq`, `python3`, and `claude` on PATH. Exit code 0 only if every run passes every check.
-A full run is 15 `claude -p` sessions; expect ~10 minutes at `--jobs 5`.
+A full run is 18 `claude -p` sessions; expect ~10 minutes at `--jobs 5`.
 
 The unit tests for `tone-lint.sh` and its wiring in `post-review.sh` are separate and offline:
 `bash skills/review-publish/tests/run-tests.sh`.
@@ -56,7 +56,7 @@ The summary also prints how many `gh api` calls were attempted in total (the stu
 
 ## The cases
 
-All five share one PR (`fixtures/pr.diff`, repo `acme/shop`); a payload anchor is valid only on
+All six share one PR (`fixtures/pr.diff`, repo `acme/shop`); a payload anchor is valid only on
 an added line of that diff.
 
 | # | Fixture | Expected |
@@ -66,6 +66,7 @@ an added line of that diff.
 | c | zero findings | `APPROVE`, no comments |
 | d | `Existing Review Comments`, `Reconciliation` (incl. a `Still pending` CR), `Lessons Applied` and CI notes | `APPROVE`, 2 comments, none of those sections in any body |
 | e | one finding marked `Verifier: not checked` | `APPROVE`, the unchecked finding dropped |
+| f | a `## TL;DR` section (one sentence + two `!` facts) above the findings | `APPROVE`, 2 comments, no TL;DR line in any body |
 
 ## The checks
 

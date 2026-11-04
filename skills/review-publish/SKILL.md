@@ -3,11 +3,13 @@ name: review-publish
 description: "Use after /dtk:review-peer (or with any saved review report) to turn the report into the GitHub review: the verdict, a one-line body, one inline comment per verified finding, written through the user's own voice skill when one exists, validated against the PR diff, and posted only after an explicit confirmation. Also use when asked to post, publish or send a drafted review."
 ---
 
-# Review Publish: PR #$ARGUMENTS
+# Review Publish: PR $ARGUMENTS
 
 ## Overview
 
 Turns a saved review report into the exact payload that goes to GitHub, and posts it. The report decides WHAT is said; this skill decides WHERE each thing goes (body vs inline), the voice skill decides HOW it sounds, and nothing else gets in.
+
+The report's `TL;DR` (what the PR does and its critical facts) is for the user: it is printed above the confirmation gate so the verdict is chosen with the cost, the risk and the unproven claims in view, and it never reaches GitHub.
 
 The one rule everything below enforces: **the GitHub text contains the verdict and the verified findings, and nothing else.** No CI status, no "thanks for the rebase", no narration of what was checked, no status of old threads, no recap of the author's work. The author sees CI and their own threads already.
 
@@ -30,16 +32,26 @@ The one rule everything below enforces: **the GitHub text contains the verdict a
 SCRIPTS="${CLAUDE_PLUGIN_ROOT}/scripts"; [ -d "$SCRIPTS" ] || echo "dtk: scripts dir not found: $SCRIPTS" >&2; echo "$SCRIPTS"
 ```
 
+Use the output path as `$SCRIPTS` for all script commands below.
+
+Then resolve the PR number. The argument may be `184`, `#184` or a pull URL; the number is what every path, memory key, `gh` call and header below uses:
+
+```bash
+PR=$(bash $SCRIPTS/review/memory-manager.sh pr-number "$ARGUMENTS") || echo "dtk: no PR number in the argument" >&2; echo "$PR"
+```
+
+Use the output as `$PR`. Never put the raw argument in a path or a `gh` call: `#184` would save under `memories/reviews/PR-#184/`.
+
 ## Workflow
 
 ### 1. Load the report
 
 ```bash
 bash $SCRIPTS/review/project-context.sh
-ls -t memories/reviews/PR-$ARGUMENTS/peer-review-*.md | head -1
+ls -t memories/reviews/PR-$PR/peer-review-*.md | head -1
 ```
 
-Read the latest `peer-review-N.md` (or the path the user gave). Take ONLY these sections into the payload:
+Read the latest `peer-review-N.md` (or the path the user gave). Keep the `## TL;DR` section aside, verbatim: it is printed in step 6 and never enters the payload (not the body, not a comment; `tone-lint.sh` refuses it as `tldr-leak`). Take ONLY these sections into the payload:
 
 - `## Recommendation`
 - `## ✗ Blocking`
@@ -49,7 +61,7 @@ Read the latest `peer-review-N.md` (or the path the user gave). Take ONLY these 
 
 Match each section by its word (`Recommendation`, `Blocking`, `Non-blocking`, `Questions`), not by the marker in front of it: reports saved before the current vocabulary carry an emoji there (`${CLAUDE_SKILL_DIR}/../review/references/output-vocabulary.md`).
 
-Never carry into the payload: `Existing Review Comments`, `Lessons Applied`, `Reconciliation with Previous Reviews`, `Still pending`, `Resolved since last review`, CI state, rebase notes, or anything from `review-state.md`. Those are the reviewer's memory, not the author's business. An old item that is still pending already has an open thread; re-posting it is noise.
+Never carry into the payload: `TL;DR` (the reviewer's read of a body the author wrote), `Existing Review Comments`, `Lessons Applied`, `Reconciliation with Previous Reviews`, `Still pending`, `Resolved since last review`, CI state, rebase notes, or anything from `review-state.md`. Those are the reviewer's memory, not the author's business. An old item that is still pending already has an open thread; re-posting it is noise.
 
 ### 2. Decide the verdict
 
@@ -64,7 +76,7 @@ A red CI, a pending rebase, or an open old thread never changes this. CI is the 
 
 ### 3. Build the payload
 
-Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
+Write `memories/reviews/PR-$PR/publish-N.json` (same `N` as the report):
 
 ```json
 {
@@ -78,6 +90,8 @@ Write `memories/reviews/PR-$ARGUMENTS/publish-N.json` (same `N` as the report):
   ]
 }
 ```
+
+`pr` is `$PR` as a JSON number (`184`), never the raw argument (`"#184"` or a URL).
 
 **Inline comments.** One per finding that the verifier kept. Tag from the bucket: Blocking → `CR`, Non-blocking → `FFT`, Questions → `Q`. Each body:
 
@@ -136,10 +150,10 @@ The resolver returns the user's writing-voice skill, if they have one (see [Voic
 ### 5. Validate anchors
 
 ```bash
-bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json --dry-run
+bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$PR/publish-N.json --dry-run
 ```
 
-The dry run runs `tone-lint.sh` first, on the payload as it stands after the voice pass. It fails, and names the rule and the comment, on a banned hedge, a body without a `Q: `/`CR: `/`FFT: ` prefix, an inline over two sentences, or a CR under any event but `REQUEST_CHANGES`. Fix the wording (or the event) and run again; never edit the lint or the list to make a payload pass.
+The dry run runs `tone-lint.sh` first, on the payload as it stands after the voice pass. It fails, and names the rule and the comment, on a banned hedge, a body without a `Q: `/`CR: `/`FFT: ` prefix, an inline over two sentences, a CR under any event but `REQUEST_CHANGES`, or `TL;DR` anywhere in the body or a comment (`tldr-leak`). Fix the wording (or the event) and run again; never edit the lint or the list to make a payload pass.
 
 It also fails, and names the offender, when: `commit_id` is not the current head (the author pushed; re-anchor or re-review), it is not 40 characters, or an inline `line` is not an added line in the PR diff. GitHub rejects the WHOLE review with a 422 on any of these, so nothing is posted until the dry run is clean.
 
@@ -148,7 +162,7 @@ It also fails, and names the offender, when: `commit_id` is not the current head
 The draft lives INSIDE the gate, in each option's `preview`. The question dialog covers the transcript, so a draft printed above it (or worse, a one-line summary of it) is never what the user reads before choosing. End the turn with `AskUserQuestion`, never with a plain-text question:
 
 ```
-header:   "PR #$ARGUMENTS"
+header:   "PR #$PR"
 question: "Review ready: <APPROVE|REQUEST_CHANGES>. Post it?"
 options (single-select, every option carries a preview):
   - "Post <approve|request changes>"   preview: the full draft (below)  → step 7
@@ -168,6 +182,22 @@ FFT · x.js:17 — <full comment text, tag prefix dropped>
 
 Because long drafts still overflow the box, also print the same draft as plain text as the last thing in the transcript, right before the `AskUserQuestion` call. The dialog renders below it, so the full draft stays readable above the options.
 
+**The TL;DR is the last thing before the gate.** After that plain-text draft, a blank line, then a `TL;DR` line and the report's `## TL;DR` section verbatim: the sentence and every `✗`/`!` line, nothing trimmed, nothing cut with `...`. It sits last because the dialog covers the transcript from the bottom: with a long draft the lines nearest the gate are the ones still visible, and the draft is in the previews anyway.
+
+```
+APPROVE · "Approving, a few notes inline."
+Q · phpunit.xml:31 — Nothing asserts the wrong password actually applies, and `phpunit.xml` pins `LEGACY_DB_PASSWORD` with `force="true"`, so what would turn this step red if that precedence ever changed?
+FFT · LegacyConnectionTest.php:6 — I'd drop this tag, because no test in this file opens a connection.
+
+TL;DR
+Seven tests read the real legacy database by accident; this binds Fakes in them and adds a CI step that runs every shard's suite a second time with a wrong password, so the next stray read fails on the PR.
+- ✗ CI cost: every PR runs each shard's tests twice, about 1.5 to 6 minutes more per shard by the author's own numbers, and nobody has measured it on GitHub (`deploy.yml:97`; body, Impacted Areas)
+- ! Not proven: the new step and `--shard` with `--exclude-group` were never run on GitHub; the first PR after merge is the real test (body, AI Assistance)
+- ! Nothing asserts the wrong password is applied: `phpunit.xml` pins the variable with `force="true"` (`phpunit.xml:31`; raised as a Question)
+```
+
+It is the executive read the gate exists for: the verdict is chosen with the cost and the unproven claims in view, not from the inline comments alone. The option previews stay as they are (the box cuts at about 5 lines; a TL;DR there would hide the comments). A report saved before the section existed prints `TL;DR: none in this report` in its place.
+
 "Type something" and "Chat about this" are added by Claude Code itself; do not add them as options. Nothing goes to GitHub before a choice here. The gate is on posting, not on drafting.
 
 ### 6b. Pick what goes
@@ -183,14 +213,14 @@ Rewrite `publish-N.json` with the chosen verdict and only the checked comments. 
 ### 7. Post
 
 ```bash
-bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$ARGUMENTS/publish-N.json
+bash $SCRIPTS/review/post-review.sh --payload memories/reviews/PR-$PR/publish-N.json
 ```
 
 The script re-runs the dry-run checks, then submits one review via `gh api`. On a 422 it prints GitHub's message and leaves the payload untouched; fix the anchor and run again.
 
 ### 8. Record
 
-Append to `memories/reviews/PR-$ARGUMENTS/review-state.md` under `## Notes`:
+Append to `memories/reviews/PR-$PR/review-state.md` under `## Notes`:
 
 ```
 - Posted peer-review-N as <event> at <commit_id short>, <count> inline (YYYY-MM-DD)
@@ -230,5 +260,7 @@ voice_skill: <name>
 | Abbreviated `commit_id`, or an inline `line` on a context line | Run the dry run; GitHub 422s the whole review |
 | Ending the turn with a prose question | `AskUserQuestion` is the last call of the turn |
 | Summarizing the draft above the gate ("approve with LGTM, no inline") | The verbatim draft goes in the transcript right above the gate AND, dense, in the options' `preview` |
+| Gate printed without the TL;DR, or trimmed | The draft, then the report's `TL;DR` verbatim as the last lines before the gate; the executive read is the point of the gate |
+| TL;DR pasted into the review body or an inline comment | The lint refuses it (`tldr-leak`); it lives above the gate only |
 | A roomy preview (`BODY:` label, blank lines, SHA) | The box cuts at ~5 lines; the comments are what got hidden |
 | Squeezing 10 comments into one 4-option question | Paginate: 4 per question, 3 comment questions per call, then a new call |

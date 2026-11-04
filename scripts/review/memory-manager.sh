@@ -7,8 +7,11 @@
 #   bash scripts/review/memory-manager.sh next-number <identifier> <prefix>
 #   bash scripts/review/memory-manager.sh save-state <identifier>   (reads stdin)
 #   bash scripts/review/memory-manager.sh template <identifier> <type>
+#   bash scripts/review/memory-manager.sh pr-number <argument>
 #
-# <identifier> is either "PR-NNNN" or a branch name.
+# <identifier> is either "PR-NNNN" or a branch name. "PR-#NNNN" and "PR-<pull URL>" are
+# normalized to "PR-NNNN", so a review never lands in a "PR-#NNNN" directory.
+# <argument> is what a skill received as the PR: "184", "#184" or a pull URL.
 # <prefix> is "review" or "peer-review".
 # <type> is "review", "review-local", or "peer-review".
 
@@ -20,9 +23,34 @@ MEMORY_BASE="${PROJECT_ROOT}/memories/reviews"
 ACTION="${1:-help}"
 shift || true
 
+# pr_number <argument>: prints the bare PR number for "184", "#184" or
+# "https://github.com/<owner>/<repo>/pull/184[/files][#…]"; returns 1 when there is none.
+pr_number() {
+  local arg="$1"
+  arg="${arg#"${arg%%[![:space:]]*}"}"; arg="${arg%"${arg##*[![:space:]]}"}"
+  if [[ "$arg" =~ ^#?([0-9]+)$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+  elif [[ "$arg" =~ ^https?://[^[:space:]]+/pull/([0-9]+)([/?#].*)?$ ]]; then
+    echo "${BASH_REMATCH[1]}"
+  else
+    return 1
+  fi
+}
+
+# normalize_id <identifier>: "PR-#184" or "PR-<pull URL>" become "PR-184"; anything else is kept.
+normalize_id() {
+  local id="$1" n
+  if [[ "$id" == PR-* ]] && n=$(pr_number "${id#PR-}"); then
+    echo "PR-$n"
+  else
+    echo "$id"
+  fi
+}
+
 case "$ACTION" in
   init)
     REVIEW_ID="${1:?Usage: memory-manager.sh init <review-id>}"
+    REVIEW_ID=$(normalize_id "$REVIEW_ID")
     MEMORY_DIR="${MEMORY_BASE}/${REVIEW_ID}"
 
     mkdir -p "$MEMORY_DIR"
@@ -59,6 +87,7 @@ EOF
 
   next-number)
     REVIEW_ID="${1:?Usage: memory-manager.sh next-number <review-id> <prefix>}"
+    REVIEW_ID=$(normalize_id "$REVIEW_ID")
     PREFIX="${2:-review}"
     MEMORY_DIR="${MEMORY_BASE}/${REVIEW_ID}"
 
@@ -71,6 +100,7 @@ EOF
 
   save-state)
     REVIEW_ID="${1:?Usage: memory-manager.sh save-state <review-id>}"
+    REVIEW_ID=$(normalize_id "$REVIEW_ID")
     MEMORY_DIR="${MEMORY_BASE}/${REVIEW_ID}"
 
     mkdir -p "$MEMORY_DIR"
@@ -81,6 +111,7 @@ EOF
 
   template)
     REVIEW_ID="${1:?Usage: memory-manager.sh template <review-id> <type>}"
+    REVIEW_ID=$(normalize_id "$REVIEW_ID")
     TYPE="${2:-review}"
 
     case "$TYPE" in
@@ -162,6 +193,14 @@ TEMPLATE
     esac
     ;;
 
+  pr-number)
+    ARG="${1:?Usage: memory-manager.sh pr-number <argument>}"
+    if ! pr_number "$ARG"; then
+      echo "No PR number in '$ARG' (expected 184, #184 or a pull URL)" >&2
+      exit 1
+    fi
+    ;;
+
   help|*)
     cat <<EOF
 DTK Review Memory Manager
@@ -173,6 +212,9 @@ Actions:
   next-number <review-id> <prefix>     Get next sequential number for review files
   save-state <review-id>               Save review state (reads content from stdin)
   template <review-id> <type>          Output save-state template (review|review-local|peer-review)
+  pr-number <argument>                 Print the PR number in 184, #184 or a pull URL
+
+A review-id of PR-#123 or PR-<pull URL> is stored as PR-123.
 
 Examples:
   bash memory-manager.sh init "feature/login"
@@ -180,6 +222,7 @@ Examples:
   bash memory-manager.sh next-number "PR-123" "peer-review"
   echo "# State..." | bash memory-manager.sh save-state "PR-123"
   bash memory-manager.sh template "PR-123" "review"
+  bash memory-manager.sh pr-number "#123"
 EOF
     ;;
 esac
