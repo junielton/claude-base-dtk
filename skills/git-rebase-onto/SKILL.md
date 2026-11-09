@@ -180,9 +180,10 @@ can follow along.
      - `$ARGUMENTS` contains `no-push` → do not push.
      - The topic has no upstream → do not push; there is no remote branch to
        update.
-     - The topic is the repo's default branch or a protected one
-       (`gh api repos/{owner}/{repo}/branches/<topic> --jq .protected`) → do not
-       push; a shared branch is never force-pushed on the skill's own authority.
+     - The topic is the repo's default branch
+       (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`) or a
+       protected one (`gh api repos/{owner}/{repo}/branches/<topic> --jq
+       .protected`) → do not push; a shared branch is never force-pushed on the skill's own authority.
        Tell the user to publish it by hand.
      - The push is rejected with `stale info` → stop. The remote moved: fetch, show
        the user what changed, and never retry with `--force`.
