@@ -10,12 +10,13 @@ description: >-
   `rev-list --count`, a "contaminated"/"dirty" history, duplicate-content
   conflicts on files the user never touched). Also trigger on mentions of a "cut
   point", "fork point", `rebase --onto`, "which commits are mine", a rebase stuck
-  mid-way on conflicts while reparenting, or when the user only describes the
-  symptom ("my branch has commits that aren't mine", "I want my commits on top of
-  another branch with fewer conflicts") without naming the command. Do NOT use it
-  for a plain `git rebase main` refresh of an up-to-date fork, interactive
-  history cleanup unrelated to reparenting, or merge-based workflows.
-argument-hint: "[target branch to land on, e.g. origin/main] [optional: topic branch, defaults to the current one] [optional: push]"
+  mid-way on conflicts while reparenting, a check of whether a branch has
+  conflicts or needs a rebase, or when the user only describes the symptom ("my
+  branch has commits that aren't mine", "I want my commits on top of another
+  branch with fewer conflicts") without naming the command. Do NOT use it for a
+  plain `git rebase main` refresh of an up-to-date fork, interactive history
+  cleanup unrelated to reparenting, or merge-based workflows.
+argument-hint: "[target branch to land on, e.g. origin/main] [optional: topic branch, defaults to the current one] [optional: no-push]"
 ---
 
 # git rebase --onto, scripted and safe
@@ -34,10 +35,10 @@ direct parent. Histories also get "contaminated": the same change appears in two
 branches with different hashes (from an earlier rebase or cherry-pick), so a plain
 `git rev-list --count origin/<branch>..HEAD` looks inflated or "dirty".
 
-The skill's job: find the cut point with confidence, preview the move, run it
-behind guardrails, and help resolve conflicts — auto-resolving only what is
-unambiguous, researching when unsure, and asking the user when a real judgment
-call remains.
+The skill's job: confirm a rebase is needed, find the cut point with confidence,
+preview the move, run it behind guardrails, follow CI to green, and help resolve
+conflicts — auto-resolving only what is unambiguous, researching when unsure, and
+asking the user when a real judgment call remains.
 
 ## The mental model (keep this straight)
 
@@ -54,6 +55,25 @@ call remains.
 
 Work through these steps in order. Create a to-do list mirroring them so the user
 can follow along.
+
+0. **Check whether a rebase is needed.** Run `git fetch origin`, then
+   `gh pr view <topic> --json number,baseRefName,mergeable,mergeStateStatus`.
+   `mergeable` reads `UNKNOWN` while GitHub computes it: re-read until it
+   settles. With no PR, use
+   `git merge-tree --write-tree origin/<target> <topic>` (non-zero exit =
+   conflict), where `<target>` is the branch the user named, else the repo's
+   default branch.
+
+   A rebase is needed when any of these holds, and then you continue to step 1:
+   - `mergeable` is `CONFLICTING`, or `mergeStateStatus` is `DIRTY` or `BEHIND`.
+   - The target the user named differs from the PR's `baseRefName` (a reparent).
+   - The user reports commits that aren't theirs or duplicates from a
+     squash-merged parent.
+   - The user asked to rebase regardless.
+
+   Otherwise tell the user the branch has no conflicts and needs no rebase, and
+   stop: no rebase, no push, no CI watch. Being some commits behind on a `CLEAN`
+   PR is not a reason to rebase.
 
 1. **Identify the three refs.** Resolve the fork/stack relationship from the PR
    graph BEFORE anything else: `gh pr list --head <topic>` plus
@@ -113,7 +133,9 @@ can follow along.
 3. **Confirm the cut point with the user.** Always show the proposed oldbase +
    the exact commits that will be replayed, and get a yes before executing. A
    numbered log is what a human reads to find the cut by hand; reproduce that
-   clarity — never silently pick and run.
+   clarity — never silently pick and run. State in that same message that the
+   branch will be force-pushed at the end, unless `no-push` was given — this yes
+   covers the publish too.
 
 4. **Preview the rebase (dry run).** Run `safe_rebase_onto.sh` WITHOUT
    `--execute`. It validates refs, checks the working tree, and prints the commit
@@ -149,33 +171,64 @@ can follow along.
      rewritten commits, still on the OLD history) with this same skill — the
      success output repeats the list. Note `git branch --contains <backup>`
      is NOT enough: it misses children forked mid-range.
-   - If the branch has an upstream/PR, publish with
-     `git push --force-with-lease` — never plain `--force`. **The `push`
-     argument:** if `$ARGUMENTS` contains the word `push` (a bare `push`
-     argument, or "push" anywhere in the invocation, e.g. `/dtk:git-rebase-onto
-     origin/main push`), the user has already authorized this publish — run
-     `git push --force-with-lease` right after the verification checks pass, with
-     **no second confirmation**. Without it, do not push; end with the
-     "NOT pushed" line below. `push` only pre-authorizes the publish: every earlier
-     gate (cut-point confirmation, conflict decisions) still applies, and a
-     failed verification or an unresolved conflict means no push. The lease is NOT a
-     safety net for a stale topic: it only proves the remote has not moved since
-     your last fetch, so a branch that was behind `origin/<topic>` when you
-     rebased it force-pushes over those commits without complaint. That is why
+   - **Publish — the last step of this skill, not a suggestion.** Once the checks
+     above pass, run `git push --force-with-lease` (never plain `--force`) with
+     **no second confirmation**: invoking this skill authorizes the publish. The
+     exceptions, each checked against what you can observe:
+     - A verification check failed or a conflict is unresolved → do not push;
+       report why.
+     - `$ARGUMENTS` contains `no-push` → do not push.
+     - The topic has no upstream → do not push; there is no remote branch to
+       update.
+     - The topic is the repo's default branch
+       (`gh repo view --json defaultBranchRef --jq .defaultBranchRef.name`) or a
+       protected one (`gh api repos/{owner}/{repo}/branches/<topic> --jq
+       .protected`) → do not push; a shared branch is never force-pushed on the skill's own authority.
+       Tell the user to publish it by hand.
+     - The push is rejected with `stale info` → stop. The remote moved: fetch, show
+       the user what changed, and never retry with `--force`.
+
+     A `push` argument from older invocations is accepted and changes nothing. The
+     lease is NOT a safety net for a stale topic: it only proves the remote has not
+     moved since your last fetch, so a branch that was behind `origin/<topic>` when
+     you rebased it force-pushes over those commits without complaint. That is why
      step 5's script refuses to run on a topic that is behind its own remote —
      never bypass that check, fast-forward and rebase again instead.
 
+8. **Follow CI until it is green.** Run this after a successful push. With no
+   push, skip it and say so in the report.
+
+   Watch the checks in the background: `gh pr checks <topic> --watch --interval 60`
+   (no PR: `gh run list --branch <topic>`, then `gh run watch <id>`). First confirm
+   the PR's `headRefOid` equals `git rev-parse <topic>`, so you are reading the
+   pushed commit. Checks can take a minute or two to register: only after 3
+   minutes with none, conclude the repo has no CI for this branch.
+
+   - **All green:** re-run step 0's `gh pr view`, because the base may have moved
+     while CI ran. If the PR now conflicts, go back to step 1. If not, the work is
+     finished: tell the user, and also send a notification when the harness has a
+     tool for it (Harnu `notify`, `PushNotification`).
+   - **Any check red:** invoke `dtk:debug-gh-action` with the failing run's URL.
+     This skill is its autonomous caller: invoking this skill authorizes it to
+     commit and push a verified fix without asking. Then watch the new run and
+     repeat.
+   - **Stop and report the blocker** when `dtk:debug-gh-action` hands back a
+     pre-existing failure, a flaky one or a fix needing a product decision, when
+     the same check is still red after 3 fix cycles, or when a check stays pending
+     for 60 minutes. Notify the user the same way.
+
    Report the backup branch name so the user can discard it when satisfied.
 
-   **Close with a two-line plain-language report — always.** The user should
+   **Close with a three-line plain-language report — always.** The user should
    never have to ask "did you push?" or "explain again, simply, what is going
    on?". Line 1: what moved, in words — "your N commits moved from X and now sit
-   on top of Y; nothing was lost". Line 2: the push state, stated even when you
-   did nothing — **"pushed with --force-with-lease"** (when the `push` argument
-   was given and the push succeeded) or **"NOT pushed — this is the irreversible
-   step, confirm?"** (no `push` argument). Write both lines in the user's language.
-   Never end a successful rebase silently sitting on
-   an unpushed branch.
+   on top of Y; nothing was lost". Line 2: the push state:
+   **"pushed with --force-with-lease"**, or **"NOT pushed — <reason>"**
+   (`no-push` given, no upstream, failed verification, or a rejected lease).
+   Line 3: the CI state: **"CI green — finished"**, **"CI red — <blocker>"**, or
+   **"CI not followed — <reason>"**. Write all three lines in the user's
+   language. Never end a successful rebase silently sitting on an unpushed
+   branch.
 
 ## Landing a stack (do this BEFORE merging any parent)
 
