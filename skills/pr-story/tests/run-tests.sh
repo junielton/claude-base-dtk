@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh.
+# Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh,
+# list-merged.sh, and check-story.sh --digest.
 #
 #   bash skills/pr-story/tests/run-tests.sh
 #
@@ -14,6 +15,7 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 TARGET="$ROOT/scripts/pr-story/story-target.sh"
 CACHE="$ROOT/scripts/pr-story/story-cache.sh"
 CHECK="$ROOT/scripts/pr-story/check-story.sh"
+LIST="$ROOT/scripts/pr-story/list-merged.sh"
 FIX="$HERE/fixtures"
 
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
@@ -28,12 +30,18 @@ report() { # name ok detail
 }
 
 # Test-only gh: `gh repo view --json owner,name` answers acme/shop, or fails when STUB_REPO_FAIL=1.
+# `gh pr list` records its arguments in $STUB_ARGS_FILE and prints the JSON in $STUB_LIST_FILE.
 mkdir -p "$TMP/bin"
 cat > "$TMP/bin/gh" <<'STUB'
 #!/usr/bin/env bash
 if [ "${1:-}" = "repo" ] && [ "${2:-}" = "view" ]; then
   [ "${STUB_REPO_FAIL:-0}" = 1 ] && { echo "gh: not a git repository" >&2; exit 1; }
   echo '{"name":"shop","owner":{"id":"O_1","login":"acme"}}'
+  exit 0
+fi
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "list" ]; then
+  [ -n "${STUB_ARGS_FILE:-}" ] && printf '%s\n' "$*" > "$STUB_ARGS_FILE"
+  cat "${STUB_LIST_FILE:-/dev/null}"
   exit 0
 fi
 echo "stub gh: unexpected call: $*" >&2
@@ -147,6 +155,95 @@ expect_viol "a bare http:// URL fails" "bare-url:" "$TMP/http-url.md"
 expect_viol "an empty Left open fails: sections" "sections:" "$TMP/empty-open.md"
 
 echo
+echo "== check-story.sh --digest =="
+# expect_dviol <name> <rule:> <file>: check-story.sh --digest exits 1 and names the rule.
+expect_dviol() {
+  run_script "$CHECK" --digest "$3"
+  local ok=1 why=""
+  [ "$RC" = 1 ] || { ok=0; why="exit $RC, wanted 1 (stdout: $OUT; stderr: $ERR)"; }
+  if [ "$ok" = 1 ] && ! grep -qF -- "$2" <<<"$OUT"; then ok=0; why="stdout '$OUT' does not name '$2'"; fi
+  report "$1" "$ok" "$why"
+}
+dvariant() { sed -e "$2" "$FIX/digest-good.md" > "$TMP/$1.md"; } # name sed-expression
+expect "a good digest passes"                           0 "" - "$CHECK" --digest "$FIX/digest-good.md"
+dvariant d-leap-ok       's#^from: .*#from: 2028-02-29#'
+expect "a leap day is a date: 2028-02-29 passes"       0 "" - "$CHECK" --digest "$TMP/d-leap-ok.md"
+expect_dviol "four headlines fail: headlines" "headlines:" "$FIX/digest-four-headlines.md"
+expect_dviol "a PR in prs with no link in the body fails: missing-pr" "missing-pr:" "$FIX/digest-missing-pr.md"
+dvariant no-headlines    '/^- /d'
+dvariant no-arc          's/^### Checkout retries failed payment calls/### Also merged/; /^### Retry limit decision/d'
+dvariant d-unpinned      's#blob/2f3a3a8a4ab5a0809b7045754bffddf8ffbce2ad/src#blob/main/src#'
+dvariant d-bare          's|^\[#30\](https://github.com/acme/shop/pull/30)|See http://example.com for [#30](https://github.com/acme/shop/pull/30)|'
+dvariant d-no-repo       '/^repo: /d'
+dvariant d-bad-repo      's#^repo: .*#repo: shop#'
+dvariant d-bad-from      's#^from: .*#from: last week#'
+dvariant d-bad-to        's#^to: .*#to: 2026-13-45x#'
+dvariant d-feb-31        's#^from: .*#from: 2026-02-31#'
+dvariant d-no-lang       '/^lang: /d'
+dvariant d-bad-date      's/^generated_at: .*/generated_at: today/'
+dvariant d-no-prs        '/^prs: /d'
+dvariant d-empty-prs     's/^prs: .*/prs: []/'
+dvariant d-bad-prs       's/^prs: .*/prs: [15, abc]/'
+dvariant d-prefix-link 's#(https://github.com/acme/shop/pull/22)#(https://github.com/acme/shop/pull/220)#'
+expect_dviol "no headlines fail: headlines" "headlines:" "$TMP/no-headlines.md"
+expect_dviol "an Also merged section alone is not an arc: arc" "arc:" "$TMP/no-arc.md"
+expect_dviol "a /blob/main/ link fails: unpinned-link" "unpinned-link:" "$TMP/d-unpinned.md"
+expect_dviol "a bare URL fails: bare-url" "bare-url:" "$TMP/d-bare.md"
+expect_dviol "a missing repo fails: frontmatter" "frontmatter:" "$TMP/d-no-repo.md"
+expect_dviol "a repo that is not owner/repo fails: frontmatter" "frontmatter:" "$TMP/d-bad-repo.md"
+expect_dviol "a from that is not a date fails: frontmatter" "frontmatter:" "$TMP/d-bad-from.md"
+expect_dviol "a to that is not a date fails: frontmatter" "frontmatter:" "$TMP/d-bad-to.md"
+expect_dviol "a from of 2026-02-31 fails: frontmatter" "frontmatter:" "$TMP/d-feb-31.md"
+expect_dviol "a missing lang fails: frontmatter" "frontmatter:" "$TMP/d-no-lang.md"
+expect_dviol "a generated_at that is not ISO 8601 fails: frontmatter" "frontmatter:" "$TMP/d-bad-date.md"
+expect_dviol "a missing prs fails: frontmatter" "frontmatter:" "$TMP/d-no-prs.md"
+expect_dviol "an empty prs fails: frontmatter" "frontmatter:" "$TMP/d-empty-prs.md"
+expect_dviol "a prs entry that is not a number fails: frontmatter" "frontmatter:" "$TMP/d-bad-prs.md"
+expect_dviol "a link to /pull/220 does not count for #22: missing-pr" "missing-pr:" "$TMP/d-prefix-link.md"
+expect_viol "a story file is not a digest: plain mode still demands a story title" "title:" "$FIX/digest-good.md"
+expect "--digest without a file exits 2"                2 "" "usage" "$CHECK" --digest
+expect "--digest with a missing file exits 2"           2 "" "check-story" "$CHECK" --digest "$TMP/nope.md"
+
+echo
+echo "== list-merged.sh =="
+export STUB_ARGS_FILE="$TMP/gh-args"
+cat > "$TMP/list.json" <<'JSON'
+[
+  {"number":22,"title":"fix: the retry loop","body":"Follow-up to #15 and also #15 again. See acme/shop#99.","author":{"login":"ana"},"mergedAt":"2026-11-12T10:00:00Z","additions":5,"deletions":1,"changedFiles":1,"labels":[{"name":"bug"}],"files":[{"path":"src/retry.sh"}]},
+  {"number":15,"title":"feat: retry loop","body":null,"author":{"login":"bo"},"mergedAt":"2026-11-08T09:30:00Z","additions":80,"deletions":2,"changedFiles":2,"labels":[],"files":[{"path":"src/retry.sh"},{"path":"README.md"}]}
+]
+JSON
+echo '[]' > "$TMP/empty.json"
+export STUB_LIST_FILE="$TMP/list.json"
+DTK_NOW=2026-11-13 run_script "$LIST" acme/shop 7d
+list_out="$OUT"; list_rc=$RC
+ok=1; why=""
+grep -qF -- 'merged:>=2026-11-06' "$STUB_ARGS_FILE" 2>/dev/null || { ok=0; why="gh pr list was called with: $(cat "$STUB_ARGS_FILE" 2>/dev/null) (stderr: $ERR)"; }
+[ "$list_rc" = 0 ] || { ok=0; why="exit $list_rc (stderr: $ERR)"; }
+report "7d with DTK_NOW=2026-11-13 queries merged:>=2026-11-06" "$ok" "$why"
+
+got="$(jq -c '[.[].number]' <<<"$list_out" 2>/dev/null)"
+report "output is sorted oldest merge first" "$([ "$got" = "[15,22]" ] && echo 1 || echo 0)" "numbers '$got', wanted [15,22]"
+
+got="$(jq -c '.[] | select(.number == 22) | .refs' <<<"$list_out" 2>/dev/null)"
+report "a body 'follow-up to #15' yields refs [15]" "$([ "$got" = "[15]" ] && echo 1 || echo 0)" "refs '$got', wanted [15]"
+
+got="$(jq -c '.[] | select(.number == 15) | .refs' <<<"$list_out" 2>/dev/null)"
+report "a null body yields no refs" "$([ "$got" = "[]" ] && echo 1 || echo 0)" "refs '$got', wanted []"
+
+got="$(jq -c '.[] | select(.number == 22) | [.author, .labels, .files, .additions, .deletions, .changedFiles, .mergedAt]' <<<"$list_out" 2>/dev/null)"
+want='["ana",["bug"],["src/retry.sh"],5,1,1,"2026-11-12T10:00:00Z"]'
+report "fields are flattened (author, labels, files)" "$([ "$got" = "$want" ] && echo 1 || echo 0)" "got '$got', wanted '$want'"
+
+STUB_LIST_FILE="$TMP/empty.json" expect "an empty range prints [] and exits 0" 0 "[]" - "$LIST" acme/shop 2026-11-06
+STUB_LIST_FILE="$TMP/empty.json" run_script "$LIST" acme/shop 2026-11-06
+grep -qF -- 'merged:>=2026-11-06' "$STUB_ARGS_FILE" 2>/dev/null; report "a YYYY-MM-DD since is used as given" "$([ $? = 0 ] && echo 1 || echo 0)" "gh pr list was called with: $(cat "$STUB_ARGS_FILE" 2>/dev/null)"
+DTK_NOW=2026-03-02 STUB_LIST_FILE="$TMP/empty.json" run_script "$LIST" acme/shop 5d
+grep -qF -- 'merged:>=2026-02-25' "$STUB_ARGS_FILE" 2>/dev/null; report "relative dates cross a month boundary (5d before 2026-03-02)" "$([ $? = 0 ] && echo 1 || echo 0)" "gh pr list was called with: $(cat "$STUB_ARGS_FILE" 2>/dev/null)"
+expect "a since that is not a date or Nd exits 2" 2 "" "since" "$LIST" acme/shop yesterday
+expect "a repo that is not owner/repo exits 2" 2 "" "owner/repo" "$LIST" shop 7d
+expect "no argument exits 2" 2 "" "usage" "$LIST"
+
 echo "== SKILL.md keeps the verification rules =="
 SKILL="$ROOT/skills/pr-story/SKILL.md"
 pin() { # name text-that-must-stay
@@ -159,6 +256,8 @@ pin "more claims mean more batches"                  'send more batches, not a b
 pin "claims are numbered so coverage can be checked" 'Number the claims `c1`, `c2`'
 pin "every claim must come back with a verdict"      'Every claim must have a verdict'
 pin "the gate runs before delivery"                  'Do not deliver a story the gate has not passed'
+pin "a digest never re-verifies a story's claims"    'keeps that story'"'"'s verdict'
+pin "an arc claim is the relation alone"             'write the claim as the relation alone'
 
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"

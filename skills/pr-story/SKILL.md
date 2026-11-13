@@ -6,12 +6,14 @@ description: >-
   statement is checked against the code, the review threads and the runs by an
   independent claim-verifier agent, and every file, PR, thread or run it mentions is a
   link that was checked. Works on open or merged PRs, with or without a local clone,
-  and keeps a per-user cache so a merged PR is told once. Use it when the user asks
-  "tell me what this PR brought in", "story of PR #n", "what did #n change", "explain
-  this PR without the diff", "what landed in #n", or pastes a PR URL with that intent,
-  in any language. Do NOT use it to review a PR and give feedback (review-peer, review),
-  to write a PR description (create-pr), or to summarize a date range of PRs.
-argument-hint: "[PR number | owner/repo#n | PR URL] [optional: language]"
+  and keeps a per-user cache so a merged PR is told once. With a date range or several
+  PRs it writes a digest: a three-line header, then the PRs grouped into a few arcs.
+  Use it when the user asks "tell me what this PR brought in", "story of PR #n", "what
+  did #n change", "explain this PR without the diff", "what landed in #n", "what merged
+  this week", "digest of the last 14 days", or pastes a PR URL with that intent, in any
+  language. Do NOT use it to review a PR and give feedback (review-peer, review), or to
+  write a PR description (create-pr).
+argument-hint: "[PR number | owner/repo#n | PR URL] [optional: language]  |  --since <YYYY-MM-DD|Nd> [owner/repo] [language]  |  <ref> <ref> …"
 ---
 
 # PR story: $ARGUMENTS
@@ -29,8 +31,12 @@ Two failures matter:
   The narrative lives in the flow of the paragraphs, never in a dramatic title.
 
 Not a code review: the story never judges quality or proposes fixes. Not a PR description.
-Read-only: the only things written are the cache file and, for a viewer, one copy in a
+Read-only: the only things written are the cache files and, for a viewer, one copy in a
 git-ignored folder. It never posts anywhere.
+
+**Which mode.** One PR (a number, `owner/repo#n` or a URL) is the pipeline below. A range
+(`--since <YYYY-MM-DD|Nd> [owner/repo] [language]`) or two or more PR references
+(`<ref> <ref> …`) is the **digest mode**, after the pipeline: its steps reuse it.
 
 ## Step 0: Resolve scripts
 
@@ -255,9 +261,179 @@ never into a tracked path.
 
 When the story is served from the cache (step 2), skip straight to this delivery step.
 
+## Digest mode
+
+A digest tells what a repo took in over a range as a few arcs, not as N stories pasted one
+after another. It is built on the same pipeline and the same cache: it never re-derives a
+story that already exists.
+
+Invocations:
+
+- `/dtk:pr-story --since <YYYY-MM-DD|Nd> [owner/repo] [language]`: every PR merged from that
+  date (`7d` is seven days before today) to today. Without `owner/repo`, use the current
+  directory's GitHub repo, as step 1 does for a bare number; if there is none, ask for
+  `owner/repo`.
+- `/dtk:pr-story <ref> <ref> …`: exactly those PRs, each resolved with `story-target.sh`. They
+  must be in one repo; if not, say so and offer one digest per repo. `from` and `to` are the
+  earliest and latest merge dates among them (today for an open PR). An open PR is told in
+  the digest as open, never as merged.
+
+The language rule is the one above: English unless the prompt asks for another, and the whole
+digest, including its cached stories, is in that language.
+
+### D1. List
+
+```bash
+"$SCRIPTS/pr-story/list-merged.sh" <owner/repo> <since>
+```
+
+It prints a JSON array, oldest merge first, of `{number,title,author,mergedAt,additions,
+deletions,changedFiles,labels,files,refs}` (`refs` are the PR numbers the body names as
+`#<n>`). For an explicit list of PRs, read the same fields with `gh pr view`. `from` is the
+`since` date (as `YYYY-MM-DD`) and `to` is today; compute both from the date, not from the
+log.
+
+**Zero PRs:** answer in one line, `No PRs merged in <owner/repo> between <from> and <to>.`
+Write no file, spawn nothing, and stop.
+
+### D2. Tier
+
+Give each PR one tier from its labels, its title prefix, its size and the files it touches.
+These are the defaults; use judgement on the edges.
+
+| Tier | What it is | Told as |
+|---|---|---|
+| One line | Chores, config, dependency bumps, CI-only changes, formatting, version bumps | One line in "Also merged" |
+| One paragraph | Specs, plans, ADRs and docs only | A paragraph telling **what was decided**, not what was written |
+| Full story | Features, fixes, infra, anything that changes behavior | The full PR story from the pipeline, folded into its arc |
+
+A PR that sits between two tiers goes to the higher one.
+
+### D3. Group into arcs
+
+PRs that belong to one thread of work are told together. A PR joins another PR's arc when:
+
+- its `refs` (or the task id in its title or body) names another PR in the range, or
+- it fixes files that another PR in the range introduced (its `files` overlap that PR's, and it
+  merged later), or
+- the two share a task id.
+
+A PR that joins no one is its own arc. An arc is told in the order things happened, and its
+title is executive: what changed in the system, present tense, no suspense, never ending in
+`?`, `!` or an ellipsis. One-line-tier PRs stay in "Also merged" and do not form arcs. Only
+join on evidence you can point at; never join because two PRs touch the same area.
+
+### D4. Reuse and generate stories
+
+For every full-story PR:
+
+```bash
+CACHE="$("$SCRIPTS/pr-story/story-cache.sh" path <owner> <repo> <n> [lang])"
+"$SCRIPTS/pr-story/story-cache.sh" status "$CACHE" <ref-sha>
+```
+
+(`<ref-sha>` is `headRefOid` from `gh pr view`; for a merged PR, `merged: true` in the
+cached frontmatter is the same condition step 2 uses.)
+
+- `status` = `fresh` and the file is a merged story: **reuse it**. Do not regenerate it and do
+  not send any of its claims to a verifier again; they were verified when it was written.
+- `missing` or `stale`: generate it with the whole pipeline above (steps 1 to 7), saving it to
+  the cache. Run these in parallel, never more than half the machine's cores at once, counting
+  the verifier batches each one starts. Give each generator its PR, `owner/repo`, the
+  language, and nothing else it has to guess.
+
+The digest tells each arc from its stories' facts, not from the diffs again.
+
+### D5. Write the digest
+
+Draft it in the format below, then verify it, then save it.
+
+**Format:**
+
+```
+---
+repo: <owner>/<repo>
+from: <YYYY-MM-DD>
+to: <YYYY-MM-DD>
+lang: <en | pt | ...>
+generated_at: <UTC time, like 2026-11-13T18:00:00Z>
+prs: [<number>, <number>, ...]
+---
+
+## <owner/repo>: <from> to <to>
+
+**Headlines**
+- <one to three bullets: the changes a reader must not miss>
+
+### <Arc title: executive, what changed>
+
+<Paragraphs telling the arc; every PR in it linked inline, on the words the reader clicks.>
+
+**What changes for you**
+- <what the reader will see or must do>
+
+**Left open**
+- <what the arc's stories left open, linked; "Nothing." when nothing>
+
+### Also merged
+- [#n](https://github.com/<owner>/<repo>/pull/n) <one line>
+```
+
+- `prs` lists every PR in the digest, the one-liners and paragraphs included. Each must be
+  linked in the body, because the gate checks it.
+- At most three headlines, ordered by what matters most. A one-paragraph spec/docs PR is told
+  inside the arc it belongs to, or as its own arc titled by what was decided.
+- A digest with only one-line PRs has no arc to write: tell the biggest of them as an arc of
+  one, so the gate's "at least one arc" rule still holds.
+- The same tone as a story: a flowing report, plain words, any new term glossed, statements
+  that rest only on a PR author's word attributed to them. Facts like counts and dates are
+  copied from the `gh` output.
+
+**Verify only what is new.** A claim that a story already holds keeps that story's verdict and
+is never sent to a verifier again, whether the story came from the cache or was generated a
+minute ago in D4. That includes a sentence of the digest that restates a story's fact in other
+words: what PR #28 made the default, what a command accepts, what a thread decided.
+
+Sort every sentence of the draft before extracting claims:
+
+- **Taken from a story** (a fact the PR's own story states and verified): copy it, keep its
+  attribution (an author-only claim stays attributed), and send nothing.
+- **New to the digest**: send it. These are only: the **arc relation** (that one PR fixes,
+  follows or builds on another, that they belong together), a **headline** that states something
+  no story verified (a comparison, a ranking, a claim across PRs), a **one-line summary** of a
+  one-line-tier PR, and the **paragraph on a docs PR**.
+
+For an arc relation, write the claim as the relation alone, with the evidence it rests on:
+"PR #28 follows PR #26: both edit `skills/git-rebase-onto/SKILL.md`, #26 merged on <date> and
+#28 on <date>." Never add the facts either story already proved to make it read better; if a
+sentence mixes a relation with a copied fact, split it and send only the relation.
+
+Send what is left under the rules of step 5: number the claims `c1`, `c2`, …, batch them at
+most 10 per `dtk:claim-verifier` (3 to 10 each, more batches rather than a bigger one) with the
+context block (`ref` being the head or merge sha of the PR the claim is about), parallel within
+the same cap, run the coverage check (every id sent must come back with a verdict; re-send any
+that did not) and act on the verdicts the same way. Every new claim gets a verdict. When nothing is new (a digest of one-line PRs apart, say), no
+verifier runs. Then run `dtk:link-finder` as in step 6 over the digest's links that no verified
+story already holds; the PR links of the digest are `https://github.com/<owner>/<repo>/pull/<n>`.
+
+**Save and gate.**
+
+```bash
+DIGEST="$("$SCRIPTS/pr-story/story-cache.sh" digest-path <owner> <repo> <from> <to> [lang])"
+```
+
+Write the digest to a temporary file first, run `"$SCRIPTS/pr-story/check-story.sh" --digest
+<temporary file>`, fix every violation it prints and run it again. Once it exits 0, `mkdir -p`
+the folder and move the file to `$DIGEST`. Never deliver a digest the gate has not passed and
+never leave a failing file in the cache. Deliver it as in step 7 and give the cache path in
+one line.
+
+The saved digest is an output, not an input: a second call over the same range rebuilds it
+from the cached stories, which is cheap, so a late-merged PR is never missing from it.
+
 ## Rules that hold everywhere
 
 - Never post, comment or review on GitHub. The story is the reader's own reading material.
 - One unverifiable claim is dropped or attributed, never kept bare.
-- A date range or several PRs at once is not handled by this skill: say so and offer to tell
-  them one by one.
+- A digest is a mode of this skill, not a different skill. It reuses the cache and never
+  regenerates or re-verifies a story that is `fresh`.
