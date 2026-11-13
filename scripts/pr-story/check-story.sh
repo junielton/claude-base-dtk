@@ -62,10 +62,16 @@ fi
 
 # --- frontmatter ---
 valid_date() { # YYYY-MM-DD with a real month and day
-  local y m d
+  local y m d max
   [[ "$1" =~ ^([0-9]{4})-([0-9]{2})-([0-9]{2})$ ]] || return 1
-  m=$((10#${BASH_REMATCH[2]})); d=$((10#${BASH_REMATCH[3]}))
-  [ "$m" -ge 1 ] && [ "$m" -le 12 ] && [ "$d" -ge 1 ] && [ "$d" -le 31 ]
+  y=$((10#${BASH_REMATCH[1]})); m=$((10#${BASH_REMATCH[2]})); d=$((10#${BASH_REMATCH[3]}))
+  [ "$m" -ge 1 ] && [ "$m" -le 12 ] || return 1
+  case "$m" in
+    4|6|9|11) max=30 ;;
+    2) if [ $((y % 4)) = 0 ] && { [ $((y % 100)) != 0 ] || [ $((y % 400)) = 0 ]; }; then max=29; else max=28; fi ;;
+    *) max=31 ;;
+  esac
+  [ "$d" -ge 1 ] && [ "$d" -le "$max" ]
 }
 fm_value() { sed -n -E "s/^$1:[[:space:]]*(.*[^[:space:]])[[:space:]]*$/\\1/p" "$TMP/fm" | head -n 1 | sed -E "s/^[\"']//; s/[\"']$//"; }
 if [ "$MODE" = story ] && [ "$has_fm" = 1 ]; then

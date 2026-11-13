@@ -166,6 +166,8 @@ expect_dviol() {
 }
 dvariant() { sed -e "$2" "$FIX/digest-good.md" > "$TMP/$1.md"; } # name sed-expression
 expect "a good digest passes"                           0 "" - "$CHECK" --digest "$FIX/digest-good.md"
+dvariant d-leap-ok       's#^from: .*#from: 2028-02-29#'
+expect "a leap day is a date: 2028-02-29 passes"       0 "" - "$CHECK" --digest "$TMP/d-leap-ok.md"
 expect_dviol "four headlines fail: headlines" "headlines:" "$FIX/digest-four-headlines.md"
 expect_dviol "a PR in prs with no link in the body fails: missing-pr" "missing-pr:" "$FIX/digest-missing-pr.md"
 dvariant no-headlines    '/^- /d'
@@ -176,6 +178,7 @@ dvariant d-no-repo       '/^repo: /d'
 dvariant d-bad-repo      's#^repo: .*#repo: shop#'
 dvariant d-bad-from      's#^from: .*#from: last week#'
 dvariant d-bad-to        's#^to: .*#to: 2026-13-45x#'
+dvariant d-feb-31        's#^from: .*#from: 2026-02-31#'
 dvariant d-no-lang       '/^lang: /d'
 dvariant d-bad-date      's/^generated_at: .*/generated_at: today/'
 dvariant d-no-prs        '/^prs: /d'
@@ -190,6 +193,7 @@ expect_dviol "a missing repo fails: frontmatter" "frontmatter:" "$TMP/d-no-repo.
 expect_dviol "a repo that is not owner/repo fails: frontmatter" "frontmatter:" "$TMP/d-bad-repo.md"
 expect_dviol "a from that is not a date fails: frontmatter" "frontmatter:" "$TMP/d-bad-from.md"
 expect_dviol "a to that is not a date fails: frontmatter" "frontmatter:" "$TMP/d-bad-to.md"
+expect_dviol "a from of 2026-02-31 fails: frontmatter" "frontmatter:" "$TMP/d-feb-31.md"
 expect_dviol "a missing lang fails: frontmatter" "frontmatter:" "$TMP/d-no-lang.md"
 expect_dviol "a generated_at that is not ISO 8601 fails: frontmatter" "frontmatter:" "$TMP/d-bad-date.md"
 expect_dviol "a missing prs fails: frontmatter" "frontmatter:" "$TMP/d-no-prs.md"
