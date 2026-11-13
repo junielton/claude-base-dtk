@@ -371,14 +371,30 @@ prs: [<number>, <number>, ...]
   that rest only on a PR author's word attributed to them. Facts like counts and dates are
   copied from the `gh` output.
 
-**Verify only what is new.** A claim copied from a cached or freshly verified story is not
-verified again. The claims that are new in the digest are the ones the stories do not contain:
-the **arc framing** (that one PR fixes or follows another, that they belong together), the
-**headlines**, the **one-line summaries** and the **paragraph on a docs PR**. Batch these as in
-step 5 (3 to 10 claims per `dtk:claim-verifier`, with the context block, `ref` being the head
-or merge sha of the PR the claim is about, parallel within the same cap) and act on the
-verdicts the same way. Then run `dtk:link-finder` as in step 6 over the digest's links that no
-verified story already holds; the PR links of the digest are `https://github.com/<owner>/<repo>/pull/<n>`.
+**Verify only what is new.** A claim that a story already holds keeps that story's verdict and
+is never sent to a verifier again, whether the story came from the cache or was generated a
+minute ago in D4. That includes a sentence of the digest that restates a story's fact in other
+words: what PR #28 made the default, what a command accepts, what a thread decided.
+
+Sort every sentence of the draft before extracting claims:
+
+- **Taken from a story** (a fact the PR's own story states and verified): copy it, keep its
+  attribution (an author-only claim stays attributed), and send nothing.
+- **New to the digest**: send it. These are only: the **arc relation** (that one PR fixes,
+  follows or builds on another, that they belong together), a **headline** that states something
+  no story verified (a comparison, a ranking, a claim across PRs), a **one-line summary** of a
+  one-line-tier PR, and the **paragraph on a docs PR**.
+
+For an arc relation, write the claim as the relation alone, with the evidence it rests on:
+"PR #28 follows PR #26: both edit `skills/git-rebase-onto/SKILL.md`, #26 merged on <date> and
+#28 on <date>." Never add the facts either story already proved to make it read better; if a
+sentence mixes a relation with a copied fact, split it and send only the relation.
+
+Batch what is left as in step 5 (3 to 10 claims per `dtk:claim-verifier`, with the context block,
+`ref` being the head or merge sha of the PR the claim is about, parallel within the same cap) and
+act on the verdicts the same way. When nothing is new (a digest of one-line PRs apart, say), no
+verifier runs. Then run `dtk:link-finder` as in step 6 over the digest's links that no verified
+story already holds; the PR links of the digest are `https://github.com/<owner>/<repo>/pull/<n>`.
 
 **Save and gate.**
 
