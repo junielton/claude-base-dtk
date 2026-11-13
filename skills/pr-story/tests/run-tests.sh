@@ -244,6 +244,21 @@ expect "a since that is not a date or Nd exits 2" 2 "" "since" "$LIST" acme/shop
 expect "a repo that is not owner/repo exits 2" 2 "" "owner/repo" "$LIST" shop 7d
 expect "no argument exits 2" 2 "" "usage" "$LIST"
 
+echo "== SKILL.md keeps the verification rules =="
+SKILL="$ROOT/skills/pr-story/SKILL.md"
+pin() { # name text-that-must-stay
+  if grep -qF -- "$2" "$SKILL"; then report "$1" 1 ""; else report "$1" 0 "SKILL.md no longer contains: $2"; fi
+}
+pin "every Left open bullet is a claim"              'every `Left open` bullet'
+pin "every attributed sentence is a claim"           'every "<author> says…" or "according to <author>" sentence'
+pin "batches never exceed 10 claims"                 'never more than 10 in one batch'
+pin "more claims mean more batches"                  'send more batches, not a bigger one'
+pin "claims are numbered so coverage can be checked" 'Number the claims `c1`, `c2`'
+pin "every claim must come back with a verdict"      'Every claim must have a verdict'
+pin "the gate runs before delivery"                  'Do not deliver a story the gate has not passed'
+pin "a digest never re-verifies a story's claims"    'keeps that story'"'"'s verdict'
+pin "an arc claim is the relation alone"             'write the claim as the relation alone'
+
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]
