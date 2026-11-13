@@ -1,0 +1,26 @@
+{
+  "target": "pr-story",
+  "subject": "two merged PRs of the public repo junielton/claude-base-dtk",
+  "cases": [
+    {
+      "id": "small",
+      "pr": "junielton/claude-base-dtk#28",
+      "repo": "junielton/claude-base-dtk",
+      "number": 28,
+      "author": "junielton",
+      "ref": "2f3a3a8a4ab5a0809b7045754bffddf8ffbce2ad",
+      "large": false,
+      "why": "2 files, +85 -32: read inline. Its body states things only the author says (what was and was not run), so the attribution check has something to bite on."
+    },
+    {
+      "id": "large",
+      "pr": "junielton/claude-base-dtk#24",
+      "repo": "junielton/claude-base-dtk",
+      "number": 24,
+      "author": "junielton",
+      "ref": "c8633a20b967f5a0cf03a584e06aa8b5cbd69be6",
+      "large": true,
+      "why": "32 files, +516 -18: over the 25-file threshold, so the skill must go through the fact-gathering subagent."
+    }
+  ]
+}
