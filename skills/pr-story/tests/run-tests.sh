@@ -147,5 +147,19 @@ expect_viol "a bare http:// URL fails" "bare-url:" "$TMP/http-url.md"
 expect_viol "an empty Left open fails: sections" "sections:" "$TMP/empty-open.md"
 
 echo
+echo "== SKILL.md keeps the verification rules =="
+SKILL="$ROOT/skills/pr-story/SKILL.md"
+pin() { # name text-that-must-stay
+  if grep -qF -- "$2" "$SKILL"; then report "$1" 1 ""; else report "$1" 0 "SKILL.md no longer contains: $2"; fi
+}
+pin "every Left open bullet is a claim"              'every `Left open` bullet'
+pin "every attributed sentence is a claim"           'every "<author> says…" or "according to <author>" sentence'
+pin "batches never exceed 10 claims"                 'never more than 10 in one batch'
+pin "more claims mean more batches"                  'send more batches, not a bigger one'
+pin "claims are numbered so coverage can be checked" 'Number the claims `c1`, `c2`'
+pin "every claim must come back with a verdict"      'Every claim must have a verdict'
+pin "the gate runs before delivery"                  'Do not deliver a story the gate has not passed'
+
+echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]

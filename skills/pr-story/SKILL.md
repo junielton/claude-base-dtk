@@ -153,12 +153,26 @@ clicks.>
 
 ### 5. Verify
 
-Extract every factual claim from the draft: what the code does now, what a command accepts,
-what a thread decided, what a run showed, what the PR says it did not test. Write each as one
-sentence that would read the same in the story, with hints for where to look (path, PR,
-thread url). Do not say what you expect the answer to be.
+Walk the draft sentence by sentence and extract **every factual sentence as a claim**: what
+the code does now, what a command accepts, what a thread decided, what a run showed, what the
+PR says it did or did not test. Nothing is exempt:
 
-Batch **3 to 10 claims per `dtk:claim-verifier`** (`subagent_type: "dtk:claim-verifier"`; if
+- the **Why** line, every paragraph and every bullet of **What changes for you**;
+- **every `Left open` bullet**, whatever its source;
+- **every "<author> says…" or "according to <author>" sentence**. Attribution does not make a
+  sentence true: it is a claim about what the author wrote, so the verifier must read the
+  author's text (the PR body, a comment) and confirm it says exactly that, and nothing more
+  or less (a "not re-run" that the body limits to one part is `wrong`).
+
+Only sentences with no checkable fact (pure transitions) and the meta line, whose figures are
+copied from the `gh` output, are skipped.
+
+Number the claims `c1`, `c2`, … Write each as one sentence that would read the same in the
+story, with hints for where to look (path, PR, thread url). Do not say what you expect the
+answer to be.
+
+Batch **3 to 10 claims per `dtk:claim-verifier`**, never more than 10 in one batch: when there
+are more claims, send more batches, not a bigger one (`subagent_type: "dtk:claim-verifier"`; if
 that type is not listed, spawn `general-purpose` with the body of
 `${CLAUDE_PLUGIN_ROOT}/agents/claim-verifier.md` as its prompt). Start each batch with:
 
@@ -172,6 +186,10 @@ clone: yes | no
 `clone: yes` only when the current directory is a clone of that repo and has `ref`
 (`git cat-file -e <ref>^{commit}`); otherwise `no`. Run batches in parallel, never more than
 half the machine's cores at once (`nproc`, or `sysctl -n hw.ncpu` on macOS).
+
+**Coverage check, before any verdict is acted on:** list the ids you sent and the ids that
+came back with a `### <id>:` block. Every claim must have a verdict. Re-send any claim that
+has none (in a batch of at most 10); do not move on, and do not deliver, while one is missing.
 
 Act on each verdict:
 
