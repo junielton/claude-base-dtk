@@ -13,6 +13,8 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 TARGET="$ROOT/scripts/pr-story/story-target.sh"
 CACHE="$ROOT/scripts/pr-story/story-cache.sh"
+CHECK="$ROOT/scripts/pr-story/check-story.sh"
+FIX="$HERE/fixtures"
 
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
 
@@ -59,6 +61,15 @@ expect() {
   report "$name" "$ok" "$why"
 }
 
+# expect_viol <name> <rule:> <file>: check-story.sh exits 1 and names the rule on stdout.
+expect_viol() {
+  run_script "$CHECK" "$3"
+  local ok=1 why=""
+  [ "$RC" = 1 ] || { ok=0; why="exit $RC, wanted 1 (stdout: $OUT; stderr: $ERR)"; }
+  if [ "$ok" = 1 ] && ! grep -qF -- "$2" <<<"$OUT"; then ok=0; why="stdout '$OUT' does not name '$2'"; fi
+  report "$1" "$ok" "$why"
+}
+
 echo "== story-target.sh =="
 export STUB_REPO_FAIL=0
 expect "bare number resolves the repo through gh"      0 '{"owner":"acme","repo":"shop","number":15}' - "$TARGET" "15"
@@ -96,6 +107,44 @@ expect "status: same head sha is fresh"                0 "fresh"   - "$CACHE" st
 expect "status: new head sha is stale"                 0 "stale"   - "$CACHE" status "$TMP/story.md" def
 expect "status: file without a head_sha is stale"      0 "stale"   - "$CACHE" status "$TMP/no-sha.md" abc
 expect "unknown subcommand exits 2"                    2 "" "usage" "$CACHE" frobnicate
+
+echo
+echo "== check-story.sh =="
+expect "good story passes"                              0 "" - "$CHECK" "$FIX/good.md"
+expect "a story with nothing left open passes"          0 "" - "$CHECK" "$FIX/minimal-pr.md"
+expect_viol "no Why line fails: why" "why:" "$FIX/no-why.md"
+expect_viol "a title ending in ? fails: title" "title:" "$FIX/hook-title.md"
+expect_viol "a /blob/main/ link fails: unpinned-link" "unpinned-link:" "$FIX/unpinned.md"
+expect_viol "a bare URL fails: bare-url" "bare-url:" "$FIX/bare-url.md"
+expect_viol "swapped sections fail: sections" "sections:" "$FIX/sections-swapped.md"
+expect_viol "no frontmatter fails: frontmatter" "frontmatter:" "$FIX/no-frontmatter.md"
+expect "a missing file exits 2"                         2 "" "check-story" "$CHECK" "$TMP/nope.md"
+expect "no argument exits 2"                            2 "" "usage" "$CHECK"
+
+# Edge cases around each rule, built from good.md.
+variant() { # name sed-expression  -> $TMP/<name>.md
+  sed -e "$2" "$FIX/good.md" > "$TMP/$1.md"
+}
+variant short-sha   's/^head_sha: .*/head_sha: add2d2d/'
+variant bad-date    's/^generated_at: .*/generated_at: yesterday/'
+variant no-lang     '/^lang: /d'
+variant bad-pr      's/^pr: .*/pr: 28/'
+variant bang-title  's/^### .*/### The skill now publishes!/'
+variant dots-title  's/^### .*/### The skill now publishes…/'
+variant meta-text   's/^\*Feature.*/Feature, PR 28, merged/'
+variant tree-main   's#blob/2f3a3a8a4ab5a0809b7045754bffddf8ffbce2ad/skills/git-rebase-onto/SKILL.md#tree/main/skills#'
+variant http-url    's#^A new step 0#See http://example.com for more. A new step 0#'
+{ sed '/^\*\*Left open\*\*/,$d' "$FIX/good.md"; echo '**Left open**'; } > "$TMP/empty-open.md"
+expect_viol "a head_sha that is not 40 hex fails" "frontmatter:" "$TMP/short-sha.md"
+expect_viol "a generated_at that is not ISO 8601 fails" "frontmatter:" "$TMP/bad-date.md"
+expect_viol "a missing lang fails" "frontmatter:" "$TMP/no-lang.md"
+expect_viol "a pr that is not owner/repo#n fails" "frontmatter:" "$TMP/bad-pr.md"
+expect_viol "a title ending in ! fails" "title:" "$TMP/bang-title.md"
+expect_viol "a title ending in an ellipsis fails" "title:" "$TMP/dots-title.md"
+expect_viol "a meta line without [PR # fails" "meta:" "$TMP/meta-text.md"
+expect_viol "a /tree/main link fails" "unpinned-link:" "$TMP/tree-main.md"
+expect_viol "a bare http:// URL fails" "bare-url:" "$TMP/http-url.md"
+expect_viol "an empty Left open fails: sections" "sections:" "$TMP/empty-open.md"
 
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
