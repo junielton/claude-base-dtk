@@ -135,10 +135,10 @@ skills share them.
 1. **Resolve** owner, repo and number; read the PR's state, head sha, merge commit.
 2. **Cache.** Look for `~/.local/share/dtk/stories/<owner>/<repo>/PR-<n>.md`
    (`$XDG_DATA_HOME` when set), or `PR-<n>.<lang>.md` when another language was asked
-   for. Its frontmatter
-   records the head sha it was written from and the language. A story in another
-   language is never translated on display: it is a new story, run through the pipeline. Merged PR with a cached story → show it, done. Open PR whose head sha changed →
-   regenerate.
+   for. Its frontmatter records the head sha it was written from and the language. A
+   story in another language is never translated on display: it is a new story, run
+   through the pipeline. Merged PR with a cached story → show it, done. Open PR whose
+   head sha changed → regenerate.
 3. **Gather facts.** PR body, review threads with replies and resolution, commits, file
    list and diff, linked task, and PRs that reference this one or that it references.
    A large PR (rule of thumb: more than ~1,500 changed lines or ~25 files, builder may
@@ -219,8 +219,8 @@ attributed; the four sections exist; the title is not a narrative hook.
    follow-up fix of a PR in the range, a shared task id, PRs that reference each other.
    Example from the smoke test: an infrastructure PR and the two fixes that followed it
    the same day read as one arc.
-4. **Reuse** cached stories in the digest's language (English unless asked); generate the missing full ones with the PR 2 pipeline,
-   in parallel within the CPU cap.
+4. **Reuse** cached stories in the digest's language (English unless asked); generate
+   the missing full ones with the PR 2 pipeline, in parallel within the CPU cap.
 5. **Write the digest:** a three-line "this week" header (the headlines), then one section
    per arc, each with its PRs, then the one-liners. Verify the claims that are new in the
    digest (arc framing, one-liners); claims taken from verified stories are not
