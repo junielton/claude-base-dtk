@@ -1,0 +1,38 @@
+{
+  "target": "claim-verifier",
+  "context": {
+    "repo": "junielton/claude-base-dtk",
+    "ref": "2f3a3a8a4ab5a0809b7045754bffddf8ffbce2ad",
+    "clone": "no"
+  },
+  "subject": "junielton/claude-base-dtk#28 (merged): publish by default and follow CI in git-rebase-onto",
+  "cases": [
+    {
+      "id": "c1",
+      "name": "confirmed-by-the-code",
+      "claim": "In skills/git-rebase-onto/SKILL.md, the publish step does not force-push when the branch being rebased is the repository's default branch or a protected branch.",
+      "hints": "skills/git-rebase-onto/SKILL.md at the ref, step 7 (Verify and publish).",
+      "expect_verdict": "confirmed",
+      "expect_basis": "primary",
+      "why": "Step 7 lists, among its exceptions, 'The topic is the repo's default branch ... or a protected one ... do not push'. The skill file at the ref is the primary source."
+    },
+    {
+      "id": "c2",
+      "name": "contradicted-by-the-code",
+      "claim": "In skills/git-rebase-onto/SKILL.md, step 8 stops and reports a blocker when the same CI check is still red after 5 fix cycles.",
+      "hints": "skills/git-rebase-onto/SKILL.md at the ref, step 8 (Follow CI until it is green).",
+      "expect_verdict": "wrong",
+      "expect_basis": "primary",
+      "why": "Step 8 says 'still red after 3 fix cycles'. The number is the whole claim, so a verifier that counts gets it."
+    },
+    {
+      "id": "c3",
+      "name": "stated-only-by-the-author",
+      "claim": "Before opening the pull request, its author ran `claude plugin validate --strict .` on the branch and it passed.",
+      "hints": "Pull request #28 of junielton/claude-base-dtk: its body and its commit messages.",
+      "expect_verdict": "weak",
+      "expect_basis": "author-only",
+      "why": "The only source is the PR body ('Only `claude plugin validate --strict .` was run, and it passes'). CI runs a validate step after the push, but nothing independent shows what the author ran locally before opening the PR."
+    }
+  ]
+}
