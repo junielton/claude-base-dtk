@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh,
-# list-merged.sh.
+# list-merged.sh, and check-story.sh --digest.
 #
 #   bash skills/pr-story/tests/run-tests.sh
 #
@@ -153,6 +153,52 @@ expect_viol "a meta line without [PR # fails" "meta:" "$TMP/meta-text.md"
 expect_viol "a /tree/main link fails" "unpinned-link:" "$TMP/tree-main.md"
 expect_viol "a bare http:// URL fails" "bare-url:" "$TMP/http-url.md"
 expect_viol "an empty Left open fails: sections" "sections:" "$TMP/empty-open.md"
+
+echo
+echo "== check-story.sh --digest =="
+# expect_dviol <name> <rule:> <file>: check-story.sh --digest exits 1 and names the rule.
+expect_dviol() {
+  run_script "$CHECK" --digest "$3"
+  local ok=1 why=""
+  [ "$RC" = 1 ] || { ok=0; why="exit $RC, wanted 1 (stdout: $OUT; stderr: $ERR)"; }
+  if [ "$ok" = 1 ] && ! grep -qF -- "$2" <<<"$OUT"; then ok=0; why="stdout '$OUT' does not name '$2'"; fi
+  report "$1" "$ok" "$why"
+}
+dvariant() { sed -e "$2" "$FIX/digest-good.md" > "$TMP/$1.md"; } # name sed-expression
+expect "a good digest passes"                           0 "" - "$CHECK" --digest "$FIX/digest-good.md"
+expect_dviol "four headlines fail: headlines" "headlines:" "$FIX/digest-four-headlines.md"
+expect_dviol "a PR in prs with no link in the body fails: missing-pr" "missing-pr:" "$FIX/digest-missing-pr.md"
+dvariant no-headlines    '/^- /d'
+dvariant no-arc          's/^### Checkout retries failed payment calls/### Also merged/; /^### Retry limit decision/d'
+dvariant d-unpinned      's#blob/2f3a3a8a4ab5a0809b7045754bffddf8ffbce2ad/src#blob/main/src#'
+dvariant d-bare          's|^\[#30\](https://github.com/acme/shop/pull/30)|See http://example.com for [#30](https://github.com/acme/shop/pull/30)|'
+dvariant d-no-repo       '/^repo: /d'
+dvariant d-bad-repo      's#^repo: .*#repo: shop#'
+dvariant d-bad-from      's#^from: .*#from: last week#'
+dvariant d-bad-to        's#^to: .*#to: 2026-13-45x#'
+dvariant d-no-lang       '/^lang: /d'
+dvariant d-bad-date      's/^generated_at: .*/generated_at: today/'
+dvariant d-no-prs        '/^prs: /d'
+dvariant d-empty-prs     's/^prs: .*/prs: []/'
+dvariant d-bad-prs       's/^prs: .*/prs: [15, abc]/'
+dvariant d-prefix-link 's#(https://github.com/acme/shop/pull/22)#(https://github.com/acme/shop/pull/220)#'
+expect_dviol "no headlines fail: headlines" "headlines:" "$TMP/no-headlines.md"
+expect_dviol "an Also merged section alone is not an arc: arc" "arc:" "$TMP/no-arc.md"
+expect_dviol "a /blob/main/ link fails: unpinned-link" "unpinned-link:" "$TMP/d-unpinned.md"
+expect_dviol "a bare URL fails: bare-url" "bare-url:" "$TMP/d-bare.md"
+expect_dviol "a missing repo fails: frontmatter" "frontmatter:" "$TMP/d-no-repo.md"
+expect_dviol "a repo that is not owner/repo fails: frontmatter" "frontmatter:" "$TMP/d-bad-repo.md"
+expect_dviol "a from that is not a date fails: frontmatter" "frontmatter:" "$TMP/d-bad-from.md"
+expect_dviol "a to that is not a date fails: frontmatter" "frontmatter:" "$TMP/d-bad-to.md"
+expect_dviol "a missing lang fails: frontmatter" "frontmatter:" "$TMP/d-no-lang.md"
+expect_dviol "a generated_at that is not ISO 8601 fails: frontmatter" "frontmatter:" "$TMP/d-bad-date.md"
+expect_dviol "a missing prs fails: frontmatter" "frontmatter:" "$TMP/d-no-prs.md"
+expect_dviol "an empty prs fails: frontmatter" "frontmatter:" "$TMP/d-empty-prs.md"
+expect_dviol "a prs entry that is not a number fails: frontmatter" "frontmatter:" "$TMP/d-bad-prs.md"
+expect_dviol "a link to /pull/220 does not count for #22: missing-pr" "missing-pr:" "$TMP/d-prefix-link.md"
+expect_viol "a story file is not a digest: plain mode still demands a story title" "title:" "$FIX/digest-good.md"
+expect "--digest without a file exits 2"                2 "" "usage" "$CHECK" --digest
+expect "--digest with a missing file exits 2"           2 "" "check-story" "$CHECK" --digest "$TMP/nope.md"
 
 echo
 echo "== list-merged.sh =="
