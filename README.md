@@ -58,6 +58,8 @@ All review skills save results to `memories/reviews/` and maintain a `review-sta
 
 Before anything is reported, every finding goes through the **`dtk-review-verifier`** subagent (`agents/dtk-review-verifier.md`): a read-only skeptic that tries to disprove the finding against the actual code, with a bar that depends on severity — a blocking finding must be proven or it is dropped, while a suggestion or a question only has its factual premise checked. Refuted findings never reach the output, and each review reports how many were kept vs. refuted.
 
+`claim-verifier` and `link-finder` (`agents/`) are shared the same way: any skill that publishes statements or links uses them. `claim-verifier` tries to disprove each claim against its primary source and returns `confirmed | wrong | weak` with quoted evidence and a `Basis` (`primary | author-only | indirect`); `link-finder` proves that every page, file or PR a text mentions opens, checking GitHub links through `gh` so private repos work.
+
 | Skill | Command | Description |
 |-------|---------|-------------|
 | **review** | `/dtk:review <PR#>` | Reviews your own PR via GitHub MCP — analyzes diff, checks against lessons learned, evaluates comments |
@@ -68,6 +70,12 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 #### Voice skill
 
 `review-publish` writes in the neutral register unless you have a writing-voice skill. It finds yours by `voice_skill:` in `~/.claude/dtk.local.md` (or the project's `.claude/dtk.local.md`), by `voice: true` in a skill's `SKILL.md` frontmatter, or by a skill named `<something>-vox` / `<something>-voice`. The voice skill only reshapes wording; the content is frozen before it runs.
+
+### Communication
+
+| Skill | Command | Description |
+|-------|---------|-------------|
+| **action-brief** | `/dtk:action-brief` | Turns what a session or a delivery produced into a verified brief of what is still open and who has to act, for the team or client or for you; every claim is checked by `claim-verifier` and every page or PR mentioned gets a link checked by `link-finder` |
 
 ### Documentation
 
