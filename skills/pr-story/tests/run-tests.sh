@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh.
+# Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh,
+# story-sentences.sh.
 #
 #   bash skills/pr-story/tests/run-tests.sh
 #
@@ -14,6 +15,7 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 TARGET="$ROOT/scripts/pr-story/story-target.sh"
 CACHE="$ROOT/scripts/pr-story/story-cache.sh"
 CHECK="$ROOT/scripts/pr-story/check-story.sh"
+SENT="$ROOT/scripts/pr-story/story-sentences.sh"
 FIX="$HERE/fixtures"
 
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
@@ -147,6 +149,67 @@ expect_viol "a bare http:// URL fails" "bare-url:" "$TMP/http-url.md"
 expect_viol "an empty Left open fails: sections" "sections:" "$TMP/empty-open.md"
 
 echo
+echo "== story-sentences.sh =="
+# good.md holds six sentences: the Why line, three paragraph sentences, one bullet of
+# What changes for you, and one author-attributed Left open bullet.
+run_script "$SENT" list "$FIX/good.md"
+LIST="$OUT"
+n="$(grep -c . <<<"$LIST")"
+report "list prints one line per sentence (6 in good.md)" "$([ "$RC" = 0 ] && [ "$n" = 6 ] && echo 1 || echo 0)" "exit $RC, $n lines: $LIST $ERR"
+report "list lines read s<N>/<checksum> <sentence>" "$(grep -qvE '^s[0-9]+/[0-9]+ .+' <<<"$LIST" && echo 0 || echo 1)" "$LIST"
+report "list skips frontmatter, title, meta line and section headings" \
+  "$(grep -qE '^s[0-9]+/[0-9]+ (###|\*Feature|\*\*What changes|\*\*Left open|pr:|head_sha)' <<<"$LIST" && echo 0 || echo 1)" "$LIST"
+report "list starts with the Why sentence" "$(sed -n 1p <<<"$LIST" | grep -qF 's1/' && sed -n 1p <<<"$LIST" | grep -qF 'The skill used to stop after the rebase' && echo 1 || echo 0)" "$(sed -n 1p <<<"$LIST")"
+report "list splits a paragraph into its sentences" "$(sed -n 2p <<<"$LIST" | grep -qE '^s2/[0-9]+ The skill now finishes what it starts\.$' && echo 1 || echo 0)" "$(sed -n 2p <<<"$LIST")"
+report "list keeps the author-attributed Left open bullet" "$(sed -n 6p <<<"$LIST" | grep -qF 'junielton says the skill evals' && echo 1 || echo 0)" "$(sed -n 6p <<<"$LIST")"
+run_script "$SENT" list "$FIX/minimal-pr.md"
+report "list keeps a Left open 'Nothing.'" "$(tail -n 1 <<<"$OUT" | grep -qE '^s6/[0-9]+ Nothing\.$' && echo 1 || echo 0)" "$OUT"
+
+key() { sed -n "${1}p" <<<"$LIST" | cut -d' ' -f1; }
+printf 'c1 confirmed primary\nc2 confirmed primary\nc3 confirmed primary\nc4 confirmed primary\nc5 weak author-only\nc6 wrong primary\nc7 weak indirect\n' > "$TMP/verdicts"
+mkmap() { # file "<line-no> <ids>"...  -> map with those sentences of good.md
+  local f="$1"; shift; : > "$f"
+  local spec; for spec in "$@"; do printf '%s %s\n' "$(key "${spec%% *}")" "${spec#* }" >> "$f"; done
+}
+mkmap "$TMP/full.map" "1 c1" "2 transition" "3 c2" "4 c3,c4" "5 c4" "6 c5"
+expect "every sentence mapped to a proven claim passes"          0 "" - "$SENT" check "$FIX/good.md" "$TMP/full.map" "$TMP/verdicts"
+
+# The send-back case: an author-attributed sentence that never became a claim.
+mkmap "$TMP/no-author.map" "1 c1" "2 transition" "3 c2" "4 c3" "5 c4"
+expect_sent() { # name rule: map [file]
+  run_script "$SENT" check "${4:-$FIX/good.md}" "$3" "$TMP/verdicts"
+  local ok=1 why=""
+  [ "$RC" = 1 ] || { ok=0; why="exit $RC, wanted 1 (stdout: $OUT; stderr: $ERR)"; }
+  if [ "$ok" = 1 ] && ! grep -qF -- "$2" <<<"$OUT"; then ok=0; why="stdout '$OUT' does not name '$2'"; fi
+  report "$1" "$ok" "$why"
+}
+expect_sent "an unmapped author-attributed sentence fails: unmapped"  "unmapped: $(key 6)" "$TMP/no-author.map"
+mkmap "$TMP/author-transition.map" "1 c1" "2 transition" "3 c2" "4 c3" "5 c4" "6 transition"
+expect_sent "an author-attributed sentence is never a transition"     "not-a-transition: $(key 6)" "$TMP/author-transition.map"
+mkmap "$TMP/number-transition.map" "1 c1" "2 transition" "3 c2" "4 transition" "5 c4" "6 c5"
+expect_sent "a sentence with a number is never a transition"          "not-a-transition: $(key 4)" "$TMP/number-transition.map"
+mkmap "$TMP/link-transition.map" "1 c1" "2 transition" "3 transition" "4 c3" "5 c4" "6 c5"
+expect_sent "a sentence with a link is never a transition"            "not-a-transition: $(key 3)" "$TMP/link-transition.map"
+mkmap "$TMP/code-transition.map" "1 c1" "2 transition" "3 c2" "4 c3" "5 transition" "6 c5"
+expect_sent "a sentence with inline code is never a transition"       "not-a-transition: $(key 5)" "$TMP/code-transition.map"
+mkmap "$TMP/no-verdict.map" "1 c1" "2 transition" "3 c2" "4 c3" "5 c9" "6 c5"
+expect_sent "a claim id that got no verdict fails: no-verdict"        "no-verdict: $(key 5) c9" "$TMP/no-verdict.map"
+mkmap "$TMP/wrong.map" "1 c6" "2 transition" "3 c2" "4 c3" "5 c4" "6 c5"
+expect_sent "a sentence resting on a wrong verdict fails: unproven"   "unproven: $(key 1) c6" "$TMP/wrong.map"
+mkmap "$TMP/weak.map" "1 c7" "2 transition" "3 c2" "4 c3" "5 c4" "6 c5"
+expect_sent "a sentence resting on a weak verdict fails: unproven"    "unproven: $(key 1) c7" "$TMP/weak.map"
+mkmap "$TMP/unattributed.map" "1 c1" "2 transition" "3 c2" "4 c3" "5 c5" "6 c5"
+expect_sent "an author-only claim in a sentence not naming the author fails" "unattributed: $(key 5)" "$TMP/unattributed.map"
+# A rewrite after mapping changes the sentence, so its old mapping no longer counts.
+sed 's/stops when it has no conflicts/stops early when it has no conflicts/' "$FIX/good.md" > "$TMP/rewritten.md"
+expect_sent "a sentence rewritten after mapping is unmapped again"     "unmapped: s4/" "$TMP/full.map" "$TMP/rewritten.md"
+expect_sent "the old mapping of a rewritten sentence is reported"      "stale-map: $(key 4)" "$TMP/full.map" "$TMP/rewritten.md"
+{ cat "$TMP/full.map"; echo "s9 c1"; } > "$TMP/bad.map"
+expect_sent "a malformed map line fails: bad-map"                      "bad-map:" "$TMP/bad.map"
+expect "check without its three files exits 2"                  2 "" "usage" "$SENT" check "$FIX/good.md"
+expect "an unknown subcommand exits 2"                          2 "" "usage" "$SENT" frobnicate
+
+echo
 echo "== SKILL.md keeps the verification rules =="
 SKILL="$ROOT/skills/pr-story/SKILL.md"
 pin() { # name text-that-must-stay
@@ -159,6 +222,13 @@ pin "more claims mean more batches"                  'send more batches, not a b
 pin "claims are numbered so coverage can be checked" 'Number the claims `c1`, `c2`'
 pin "every claim must come back with a verdict"      'Every claim must have a verdict'
 pin "the gate runs before delivery"                  'Do not deliver a story the gate has not passed'
+pin "every sentence of the final text is mapped"     'map every sentence of the final story to a claim id'
+pin "the map is checked by the script"               'story-sentences.sh" check'
+pin "the map is redone after any rewrite"            'after every rewrite'
+pin "an attributed sentence is never a transition"   'An author-attributed sentence is never a transition'
+pin "a transition carries no fact"                   'no fact, no number, no attribution'
+pin "unmapped sentences go to a verifier first"      'every unmapped factual sentence goes to a verifier'
+pin "nothing is saved before the sentence check"     'Do not save a story whose sentence check has not passed'
 
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
