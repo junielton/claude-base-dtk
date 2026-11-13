@@ -165,9 +165,10 @@ PR says it did or did not test. Nothing is exempt:
   or less (a "not re-run" that the body limits to one part is `wrong`).
 
 Only sentences with no checkable fact (pure transitions) and the meta line, whose figures are
-copied from the `gh` output, are skipped.
+copied from the `gh` output, are skipped. Step 7 proves it, sentence by sentence, on the final
+text.
 
-Number the claims `c1`, `c2`, … Write each as one sentence that would read the same in the
+Number the claims `c1`, `c2`, … and never reuse an id, not even in a later batch. Write each as one sentence that would read the same in the
 story, with hints for where to look (path, PR, thread url). Do not say what you expect the
 answer to be.
 
@@ -240,8 +241,47 @@ Then run the gate:
 
 It prints one `<rule>: <detail>` line per violation and exits 1. Fix every violation in the
 story and run it again. **Do not deliver a story the gate has not passed**, and never leave a
-failing file in the cache. Once it exits 0, `mkdir -p` the cache folder and move the file to
-`$CACHE`.
+failing file in the cache.
+
+**Sentence coverage.** Step 5's coverage check proves that every claim got a verdict; this one
+proves that every sentence got a claim, on the final text (after the verdicts and the link step
+reworded it). Once the gate passes, map every sentence of the final story to a claim id:
+
+```bash
+"$SCRIPTS/pr-story/story-sentences.sh" list <temporary file>
+```
+
+It prints `s<N>/<checksum> <sentence>` for the Why line, every paragraph sentence and every
+bullet. Write two more temporary files:
+
+- **the map**, one line per listed sentence: `<key> c3`, or `<key> c3,c7` when several claims
+  together state every fact of the sentence, or `<key> transition`. A transition carries no
+  fact, no number, no attribution ("Here is what that means for you."). An author-attributed
+  sentence is never a transition, and neither is a sentence with a link, inline code or more
+  than 15 words. A claim that says less than the sentence does not cover it.
+- **the verdicts**, one line per claim that came back: `<id> <verdict> [<basis>]`, copied from
+  its `### <id>:` block, like `c3 confirmed primary` or `c7 weak author-only`.
+
+Print both files in the conversation (`cat`), then run:
+
+```bash
+"$SCRIPTS/pr-story/story-sentences.sh" check <temporary file> <map> <verdicts>
+```
+
+It prints one `<rule>: <detail>` line per problem and exits 1:
+
+- `unmapped`, `no-verdict`, `not-a-transition`: a factual sentence no verifier has seen, and
+  every unmapped factual sentence goes to a verifier as a new claim, in batches of at most 10, with
+  new ids and step 5's coverage check, before anything is saved.
+- `unproven`: the sentence rests on a `wrong` or `weak` verdict. The corrected sentence is a new
+  claim, verified like the others.
+- `unattributed`: the sentence rests on a `weak` author-only claim and does not name the author.
+
+Act on the new verdicts as in step 5, then run `list`, the map and `check` again after every
+rewrite: a rewritten sentence gets a new key, and its old mapping is reported as `stale-map`.
+Re-run the gate when the text changed. **Do not save a story whose sentence check has not
+passed.** Only once `check-story.sh` and `story-sentences.sh check` both exit 0 on the same
+file, `mkdir -p` the cache folder and move the file to `$CACHE`.
 
 Show the story on the best display surface the environment offers, in this order:
 

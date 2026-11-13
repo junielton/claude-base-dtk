@@ -165,6 +165,14 @@ report "list keeps the author-attributed Left open bullet" "$(sed -n 6p <<<"$LIS
 run_script "$SENT" list "$FIX/minimal-pr.md"
 report "list keeps a Left open 'Nothing.'" "$(tail -n 1 <<<"$OUT" | grep -qE '^s6/[0-9]+ Nothing\.$' && echo 1 || echo 0)" "$OUT"
 
+# The send-back sentence: a lowercase login opens the second sentence of a paragraph.
+{ sed '/^A new step 0/d' "$FIX/good.md" | sed -n '1,/^The skill now finishes/p' | sed '$d'
+  echo 'Before this PR, the skill stopped after the rebase, e.g. on a stacked branch. junielton says it never pushed (i.e. the reader did).'
+  sed -n '/^\*\*What changes for you/,$p' "$FIX/good.md"; } > "$TMP/lower.md"
+run_script "$SENT" list "$TMP/lower.md"
+report "a sentence opening with a lowercase login is its own sentence" "$(grep -qE '^s[0-9]+/[0-9]+ junielton says it never pushed \(i\.e\. the reader did\)\.$' <<<"$OUT" && echo 1 || echo 0)" "$OUT"
+report "e.g. and i.e. do not end a sentence" "$(grep -qE '^s[0-9]+/[0-9]+ Before this PR, the skill stopped after the rebase, e\.g\. on a stacked branch\.$' <<<"$OUT" && echo 1 || echo 0)" "$OUT"
+
 key() { sed -n "${1}p" <<<"$LIST" | cut -d' ' -f1; }
 printf 'c1 confirmed primary\nc2 confirmed primary\nc3 confirmed primary\nc4 confirmed primary\nc5 weak author-only\nc6 wrong primary\nc7 weak indirect\n' > "$TMP/verdicts"
 mkmap() { # file "<line-no> <ids>"...  -> map with those sentences of good.md
@@ -212,8 +220,9 @@ expect "an unknown subcommand exits 2"                          2 "" "usage" "$S
 echo
 echo "== SKILL.md keeps the verification rules =="
 SKILL="$ROOT/skills/pr-story/SKILL.md"
+SKILL_FLAT="$(tr '\n' ' ' < "$SKILL" | tr -s ' ')" # pins survive a reflow of the prose
 pin() { # name text-that-must-stay
-  if grep -qF -- "$2" "$SKILL"; then report "$1" 1 ""; else report "$1" 0 "SKILL.md no longer contains: $2"; fi
+  if grep -qF -- "$2" <<<"$SKILL_FLAT"; then report "$1" 1 ""; else report "$1" 0 "SKILL.md no longer contains: $2"; fi
 }
 pin "every Left open bullet is a claim"              'every `Left open` bullet'
 pin "every attributed sentence is a claim"           'every "<author> says…" or "according to <author>" sentence'
