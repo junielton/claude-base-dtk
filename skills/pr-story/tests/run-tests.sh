@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh.
+# Offline tests for the pr-story scripts: story-target.sh, story-cache.sh, check-story.sh,
+# list-merged.sh.
 #
 #   bash skills/pr-story/tests/run-tests.sh
 #
@@ -14,6 +15,7 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 TARGET="$ROOT/scripts/pr-story/story-target.sh"
 CACHE="$ROOT/scripts/pr-story/story-cache.sh"
 CHECK="$ROOT/scripts/pr-story/check-story.sh"
+LIST="$ROOT/scripts/pr-story/list-merged.sh"
 FIX="$HERE/fixtures"
 
 command -v jq >/dev/null || { echo "jq is required" >&2; exit 2; }
@@ -28,12 +30,18 @@ report() { # name ok detail
 }
 
 # Test-only gh: `gh repo view --json owner,name` answers acme/shop, or fails when STUB_REPO_FAIL=1.
+# `gh pr list` records its arguments in $STUB_ARGS_FILE and prints the JSON in $STUB_LIST_FILE.
 mkdir -p "$TMP/bin"
 cat > "$TMP/bin/gh" <<'STUB'
 #!/usr/bin/env bash
 if [ "${1:-}" = "repo" ] && [ "${2:-}" = "view" ]; then
   [ "${STUB_REPO_FAIL:-0}" = 1 ] && { echo "gh: not a git repository" >&2; exit 1; }
   echo '{"name":"shop","owner":{"id":"O_1","login":"acme"}}'
+  exit 0
+fi
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "list" ]; then
+  [ -n "${STUB_ARGS_FILE:-}" ] && printf '%s\n' "$*" > "$STUB_ARGS_FILE"
+  cat "${STUB_LIST_FILE:-/dev/null}"
   exit 0
 fi
 echo "stub gh: unexpected call: $*" >&2
@@ -145,6 +153,46 @@ expect_viol "a meta line without [PR # fails" "meta:" "$TMP/meta-text.md"
 expect_viol "a /tree/main link fails" "unpinned-link:" "$TMP/tree-main.md"
 expect_viol "a bare http:// URL fails" "bare-url:" "$TMP/http-url.md"
 expect_viol "an empty Left open fails: sections" "sections:" "$TMP/empty-open.md"
+
+echo
+echo "== list-merged.sh =="
+export STUB_ARGS_FILE="$TMP/gh-args"
+cat > "$TMP/list.json" <<'JSON'
+[
+  {"number":22,"title":"fix: the retry loop","body":"Follow-up to #15 and also #15 again. See acme/shop#99.","author":{"login":"ana"},"mergedAt":"2026-11-12T10:00:00Z","additions":5,"deletions":1,"changedFiles":1,"labels":[{"name":"bug"}],"files":[{"path":"src/retry.sh"}]},
+  {"number":15,"title":"feat: retry loop","body":null,"author":{"login":"bo"},"mergedAt":"2026-11-08T09:30:00Z","additions":80,"deletions":2,"changedFiles":2,"labels":[],"files":[{"path":"src/retry.sh"},{"path":"README.md"}]}
+]
+JSON
+echo '[]' > "$TMP/empty.json"
+export STUB_LIST_FILE="$TMP/list.json"
+DTK_NOW=2026-11-13 run_script "$LIST" acme/shop 7d
+list_out="$OUT"; list_rc=$RC
+ok=1; why=""
+grep -qF -- 'merged:>=2026-11-06' "$STUB_ARGS_FILE" 2>/dev/null || { ok=0; why="gh pr list was called with: $(cat "$STUB_ARGS_FILE" 2>/dev/null) (stderr: $ERR)"; }
+[ "$list_rc" = 0 ] || { ok=0; why="exit $list_rc (stderr: $ERR)"; }
+report "7d with DTK_NOW=2026-11-13 queries merged:>=2026-11-06" "$ok" "$why"
+
+got="$(jq -c '[.[].number]' <<<"$list_out" 2>/dev/null)"
+report "output is sorted oldest merge first" "$([ "$got" = "[15,22]" ] && echo 1 || echo 0)" "numbers '$got', wanted [15,22]"
+
+got="$(jq -c '.[] | select(.number == 22) | .refs' <<<"$list_out" 2>/dev/null)"
+report "a body 'follow-up to #15' yields refs [15]" "$([ "$got" = "[15]" ] && echo 1 || echo 0)" "refs '$got', wanted [15]"
+
+got="$(jq -c '.[] | select(.number == 15) | .refs' <<<"$list_out" 2>/dev/null)"
+report "a null body yields no refs" "$([ "$got" = "[]" ] && echo 1 || echo 0)" "refs '$got', wanted []"
+
+got="$(jq -c '.[] | select(.number == 22) | [.author, .labels, .files, .additions, .deletions, .changedFiles, .mergedAt]' <<<"$list_out" 2>/dev/null)"
+want='["ana",["bug"],["src/retry.sh"],5,1,1,"2026-11-12T10:00:00Z"]'
+report "fields are flattened (author, labels, files)" "$([ "$got" = "$want" ] && echo 1 || echo 0)" "got '$got', wanted '$want'"
+
+STUB_LIST_FILE="$TMP/empty.json" expect "an empty range prints [] and exits 0" 0 "[]" - "$LIST" acme/shop 2026-11-06
+STUB_LIST_FILE="$TMP/empty.json" run_script "$LIST" acme/shop 2026-11-06
+grep -qF -- 'merged:>=2026-11-06' "$STUB_ARGS_FILE" 2>/dev/null; report "a YYYY-MM-DD since is used as given" "$([ $? = 0 ] && echo 1 || echo 0)" "gh pr list was called with: $(cat "$STUB_ARGS_FILE" 2>/dev/null)"
+DTK_NOW=2026-03-02 STUB_LIST_FILE="$TMP/empty.json" run_script "$LIST" acme/shop 5d
+grep -qF -- 'merged:>=2026-02-25' "$STUB_ARGS_FILE" 2>/dev/null; report "relative dates cross a month boundary (5d before 2026-03-02)" "$([ $? = 0 ] && echo 1 || echo 0)" "gh pr list was called with: $(cat "$STUB_ARGS_FILE" 2>/dev/null)"
+expect "a since that is not a date or Nd exits 2" 2 "" "since" "$LIST" acme/shop yesterday
+expect "a repo that is not owner/repo exits 2" 2 "" "owner/repo" "$LIST" shop 7d
+expect "no argument exits 2" 2 "" "usage" "$LIST"
 
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
