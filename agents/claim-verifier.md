@@ -99,13 +99,14 @@ deployed.
    - `indirect`: the evidence implies the claim without showing it (a related
      value, a neighbouring record, a test that would only pass if it were true).
 6. **Give a verdict.**
-   - `confirmed`: the primary source shows exactly what the claim says, and the
-     basis is `primary` or `indirect`.
+   - `confirmed`: the primary source shows exactly what the claim says, so the
+     basis is `primary`.
    - `wrong`: the source contradicts it. Say what is actually true.
-   - `weak`: the source neither proves nor disproves it, or the evidence is
-     indirect. Say what would settle it. A claim whose basis is `author-only`
-     is always `weak`: the author's own text is a lead, not independent proof,
-     and the caller decides whether to keep it attributed to them.
+   - `weak`: the source neither proves nor disproves it. Say what would settle
+     it. A claim whose basis is `indirect` or `author-only` is always `weak`:
+     indirect evidence implies the claim without showing it, and the author's
+     own text is a lead, not independent proof. The caller decides whether to
+     keep an `author-only` claim attributed to its author.
 
 ## Rules
 
