@@ -77,6 +77,12 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 |-------|---------|-------------|
 | **action-brief** | `/dtk:action-brief` | Turns what a session or a delivery produced into a verified brief of what is still open and who has to act, for the team or client or for you; every claim is checked by `claim-verifier` and every page or PR mentioned gets a link checked by `link-finder` |
 
+### Understanding changes
+
+| Skill | Command | Description |
+|-------|---------|-------------|
+| **pr-story** | `/dtk:pr-story <PR>` | Tells what a pull request brought in as a short, readable story (why, what changed, what changes for you, what is left open): every statement is checked by `claim-verifier`, every file, thread or run it mentions links to a page checked by `link-finder`, and a merged PR's story is cached per user |
+
 ### Documentation
 
 | Skill | Command | Description |
@@ -119,6 +125,7 @@ Skills delegate reusable logic to scripts in `scripts/`, organized by domain. Sc
 | `mockup/` | `check-mockup.mjs` | create-mockup, implement-mockup, mockup-qa |
 | `gh-action/` | `resolve-run.sh` | debug-gh-action |
 | `git-rebase-onto/` | `analyze_branches.sh`, `safe_rebase_onto.sh`, `conflict_status.sh` | git-rebase-onto |
+| `pr-story/` | `story-target.sh`, `story-cache.sh`, `check-story.sh` | pr-story |
 
 ## Project structure used by the skills
 

@@ -219,6 +219,8 @@ Run **Memory — Save**. The state is shared with `/review` and `/review-local`:
 
 The review is done when the report and the state are saved. To put it on GitHub, invoke `/dtk:review-publish $PR`. Do not draft the comment here: the report's `TL;DR`, `Reconciliation`, `Existing Review Comments` and `Final Summary` are reviewer memory and must not leak into what the author reads.
 
+To read what the PR brings in as a short verified story, `/dtk:pr-story <PR>`.
+
 ## Tone & Perspective
 
 Findings should be:
