@@ -43,6 +43,9 @@ jobs:
       - name: review-publish tests
         run: bash skills/review-publish/tests/run-tests.sh
 
+      - name: pr-story tests
+        run: bash skills/pr-story/tests/run-tests.sh
+
       - name: design-panel tests
         run: node --test "$SCRIPTS_DIR"/design-panel/tests/*.test.mjs
 
