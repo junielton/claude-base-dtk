@@ -2,19 +2,23 @@
 """Grade pr-story eval runs.
 
 For every <work>/<case>/run-N/ folder it finds the cached story written by the skill
-(<run>/data/dtk/stories/<owner>/<repo>/PR-<n>.md) and checks four things:
+(<run>/data/dtk/stories/<owner>/<repo>/PR-<n>.md) and checks five things:
 
   1. gate      scripts/pr-story/check-story.sh exits 0 on the story.
   2. links     every github.com link in the story resolves through `gh` (no 404).
   3. verifier  a fresh dtk:claim-verifier run on up to 8 sentences sampled from the story
                returns no `wrong`.
   4. author    every sentence the verifier marks `Basis: author-only` names the PR author.
+  5. coverage  every sentence of the saved story (as scripts/pr-story/story-sentences.sh lists
+               it) is mapped in the transcript to claim ids whose claim-verifier output, read
+               from the transcript itself, is `confirmed` or attributed `weak author-only`; or
+               is a transition the script accepts. The skill's own verdicts file is not trusted.
 
 A case marked "large" also reports whether a fact-gathering subagent ran (a subagent other
 than claim-verifier and link-finder). That one is printed, not graded: the transcript shows it
 only when the model chose to delegate, and the 25-file rule is the skill's, not this grader's.
 
-Exit 0 only when every run passes checks 1 to 4.
+Exit 0 only when every run passes checks 1 to 5.
 """
 import argparse
 import glob
@@ -173,6 +177,82 @@ def helper_subagents(transcript):
     return seen
 
 
+MAP_RE = re.compile(r"^[ \t]*(s\d+/\d+)[ \t]+(transition|c\d+(?:,c\d+)*)[ \t]*$", re.M)
+
+
+def strings(x):
+    if isinstance(x, str):
+        yield x
+    elif isinstance(x, dict):
+        for v in x.values():
+            yield from strings(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from strings(v)
+
+
+def coverage(transcript, story, root):
+    """(ok, detail): every sentence of the saved story maps to a verified claim, per the transcript.
+
+    Verdicts come from the claim-verifier subagents' own messages (parent_tool_use_id), the
+    sentence map from the main thread's tool calls and results (the last line per key wins).
+    """
+    if not os.path.exists(transcript):
+        return False, "no transcript"
+    rows = []
+    for line in open(transcript, errors="replace"):
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            pass
+    verifier_calls = set()
+    for d in rows:
+        if d.get("type") != "assistant" or d.get("parent_tool_use_id"):
+            continue
+        for b in d.get("message", {}).get("content", []):
+            if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task"):
+                inp = b.get("input") or {}
+                if "claim-verifier" in str(inp.get("subagent_type")) or (
+                        "Context:" in str(inp.get("prompt")) and "clone:" in str(inp.get("prompt"))):
+                    verifier_calls.add(b.get("id"))
+    verdicts, mapping = {}, {}
+    for d in rows:
+        parent = d.get("parent_tool_use_id")
+        content = (d.get("message") or {}).get("content")
+        if parent in verifier_calls and d.get("type") == "assistant":
+            for t in strings(content):
+                for k, v in parse_verdicts(t).items():
+                    if v.get("verdict"):
+                        verdicts[k] = v
+        elif not parent and d.get("type") in ("assistant", "user"):
+            for t in strings(content):
+                for m in MAP_RE.finditer(t):
+                    mapping[m.group(1)] = m.group(2)
+    if not verifier_calls:
+        return False, "no claim-verifier call in the transcript"
+    with tempfile.TemporaryDirectory() as tmp:
+        mp, vp = os.path.join(tmp, "map"), os.path.join(tmp, "verdicts")
+        with open(mp, "w") as f:
+            f.writelines(f"{k} {v}\n" for k, v in mapping.items())
+        with open(vp, "w") as f:
+            f.writelines(f"{k} {v['verdict']} {v['basis'] or ''}\n" for k, v in verdicts.items()
+                         if re.match(r"^c\d+$", k))
+        script = os.path.join(root, "scripts", "pr-story", "story-sentences.sh")
+        listed = sh(["bash", script, "list", story]).stdout.splitlines()
+        r = sh(["bash", script, "check", story, mp, vp])
+    keys = [l.split(" ", 1)[0] for l in listed]
+    transitions = sum(1 for k in keys if mapping.get(k) == "transition")
+    claimed = sum(1 for k in keys if k in mapping and mapping[k] != "transition")
+    problems = [l for l in r.stdout.splitlines() if not l.startswith("stale-map:")]
+    detail = (f"{len(keys)} sentences: {claimed} mapped to claims, {transitions} transitions; "
+              f"{len(verifier_calls)} verifier calls, {len(verdicts)} verdicts")
+    if r.returncode == 2:
+        return False, "story-sentences.sh failed: " + r.stderr.strip()
+    if problems:
+        return False, detail + "; " + " | ".join(p[:140] for p in problems[:6])
+    return True, detail
+
+
 # ---------------------------------------------------------------- grading
 
 def grade_run(run_dir, case, root, model):
@@ -227,6 +307,8 @@ def grade_run(run_dir, case, root, model):
         checks.append(("author", not unattributed,
                        "every author-only sentence names the author" if not unattributed
                        else "does not name the author: " + "; ".join(unattributed)))
+
+    checks.append(("coverage",) + coverage(os.path.join(run_dir, "transcript.jsonl"), story, root))
 
     if case.get("large"):
         helpers = [h for h in helper_subagents(os.path.join(run_dir, "transcript.jsonl"))

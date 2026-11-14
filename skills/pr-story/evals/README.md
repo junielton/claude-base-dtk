@@ -32,6 +32,14 @@ For each run, on the story the skill saved in the run's own (empty) cache:
    author in that sentence ("junielton says…"), so a claim that rests on the author's word is
    never stated as fact.
 
+5. **coverage**: every sentence of the saved story, as `scripts/pr-story/story-sentences.sh
+   list` splits it, has a sentence-map line in the transcript (`<key> c3,c7` or
+   `<key> transition`), and every claim it names came back from a `claim-verifier` subagent,
+   read from that subagent's own messages in the transcript, as `confirmed` or as `weak`
+   author-only in a sentence that names the author. Transitions must pass the script's rules
+   (no number, link, code, attribution or author name, at most 15 words). This is the check
+   that catches a sentence written into the story that never reached a verifier.
+
 For `large`, the grader also prints whether the transcript shows a fact-gathering subagent
 (any subagent other than `claim-verifier` and `link-finder`). That line is a note, not a grade.
 
@@ -54,4 +62,4 @@ agents it depends on change. It is never part of CI. Needs `claude`, `gh` (signe
 the cores.
 
 Each run uses its own `XDG_DATA_HOME`, so your real story cache is never read or written.
-Exit code is 0 only when every run passes all four checks.
+Exit code is 0 only when every run passes all five checks.
