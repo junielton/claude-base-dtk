@@ -81,7 +81,7 @@ Before anything is reported, every finding goes through the **`dtk-review-verifi
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| **pr-story** | `/dtk:pr-story <PR>` | Tells what a pull request brought in as a short, readable story (why, what changed, what changes for you, what is left open): every statement is checked by `claim-verifier`, every file, thread or run it mentions links to a page checked by `link-finder`, and a merged PR's story is cached per user |
+| **pr-story** | `/dtk:pr-story <PR>`, `/dtk:pr-story --since 7d` | Tells what a pull request brought in as a short, readable story (why, what changed, what changes for you, what is left open): every statement is checked by `claim-verifier`, every file, thread or run it mentions links to a page checked by `link-finder`, and a merged PR's story is cached per user. With a date range or several PRs it writes a digest: three headlines, then the PRs grouped into arcs, built from the cached stories |
 
 ### Documentation
 
@@ -125,7 +125,7 @@ Skills delegate reusable logic to scripts in `scripts/`, organized by domain. Sc
 | `mockup/` | `check-mockup.mjs` | create-mockup, implement-mockup, mockup-qa |
 | `gh-action/` | `resolve-run.sh` | debug-gh-action |
 | `git-rebase-onto/` | `analyze_branches.sh`, `safe_rebase_onto.sh`, `conflict_status.sh` | git-rebase-onto |
-| `pr-story/` | `story-target.sh`, `story-cache.sh`, `check-story.sh` | pr-story |
+| `pr-story/` | `story-target.sh`, `story-cache.sh`, `check-story.sh`, `list-merged.sh` | pr-story |
 
 ## Project structure used by the skills
 
